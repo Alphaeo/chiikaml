@@ -1,0 +1,8 @@
+build/
+out/
+.cache/
+*.o
+*.obj
+.vs/
+.vscode/ipch/
+CMakeUserPresets.json
