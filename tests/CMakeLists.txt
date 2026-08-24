@@ -7,16 +7,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(cppml_tests
+add_executable(chiikaml_tests
     test_matrix.cpp
+    test_knn.cpp
 )
 
-target_link_libraries(cppml_tests PRIVATE
-    cppml
+target_link_libraries(chiikaml_tests PRIVATE
+    chiikaml
     Catch2::Catch2WithMain
 )
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
 include(Catch)
-catch_discover_tests(cppml_tests)
+catch_discover_tests(chiikaml_tests)

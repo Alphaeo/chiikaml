@@ -1,4 +1,4 @@
-# cppml
+# chiikaml
 
 Bibliotheque C++ d'algorithmes de machine learning "classiques",
 implementes depuis zero avec un vrai focus sur la performance

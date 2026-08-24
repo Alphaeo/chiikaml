@@ -1,8 +1,8 @@
-#include "cppml/matrix.hpp"
+#include "chiikaml/matrix.hpp"
 
 #include <stdexcept>
 
-namespace cppml {
+namespace chiikaml {
 
 // TODO(toi): implemente ce constructeur.
 // - stocke rows/cols
@@ -67,4 +67,4 @@ std::ostream& operator<<(std::ostream& os, const Matrix& m) {
     return os;
 }
 
-} // namespace cppml
+} // namespace chiikaml

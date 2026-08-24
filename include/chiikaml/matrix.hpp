@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-namespace cppml {
+namespace chiikaml {
 
 // Matrice dense de doubles, stockee de maniere contigue en memoire
 // (row-major : la ligne i, colonne j est a l'indice i * cols_ + j).
@@ -37,4 +37,4 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const Matrix& m);
 
-} // namespace cppml
+} // namespace chiikaml

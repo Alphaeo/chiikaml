@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "cppml/matrix.hpp"
+#include "chiikaml/matrix.hpp"
 
-using cppml::Matrix;
+using chiikaml::Matrix;
 
 TEST_CASE("Une matrice nouvellement creee a les bonnes dimensions", "[matrix]") {
     Matrix m(3, 4);
