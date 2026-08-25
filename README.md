@@ -174,9 +174,16 @@ utilisables en pratique. Pas de dependance GPU/CUDA obligatoire.
   d'entrainement, comparaisons quantization...) directement depuis
   `chiikaml`, de maniere simple/ludique/accessible - sans avoir a
   passer par un tas de bibliotheques externes (matplotlib/pandas/etc.)
-  comme aujourd'hui pour juste regarder un resultat. Portee exacte pas
-  encore decidee (rendu terminal/ASCII, export SVG, dashboard web
-  leger...) ; rejoint naturellement le benchmarking (Phase 7, Phase 20).
+  comme aujourd'hui pour juste regarder un resultat. Architecture
+  envisagee (precisee le 2026-08-25) : une methode de la bibliotheque
+  ouvre, au premier appel, une petite app web locale (serveur
+  HTTP+WebSocket embarque en C++ dans un thread separe + frontend
+  React) affichant les metriques ; les appels suivants poussent de
+  nouvelles donnees sur la connexion deja ouverte pour mettre a jour
+  la meme page en direct, plutot que de rouvrir un onglet a chaque
+  fois - meme principe que TensorBoard, mais auto-heberge, sans
+  service externe. Pas encore d'implementation ; rejoint naturellement
+  le benchmarking (Phase 7, Phase 20).
 
 ## Licence
 
