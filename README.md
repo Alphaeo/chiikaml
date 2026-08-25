@@ -17,7 +17,7 @@ faire tourner de petits modeles text-to-text (voir Partie 2).
 - [x] Phase 0 - Setup (CMake, Catch2, structure du projet)
 - [x] Phase 1 - `Matrix` : stockage contigu, operations de base
 - [x] Phase 2 - k-NN (brute-force) + metriques de distance
-- [ ] Phase 3 - KD-Tree pour un k-NN rapide
+- [x] Phase 3 - KD-Tree pour un k-NN rapide
 - [ ] Phase 4 - K-Means
 - [ ] Phase 5 - Arbre de decision (CART, gini/entropie)
 - [ ] Phase 6 - Random Forest (bagging + multithreading)
