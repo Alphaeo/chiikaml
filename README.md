@@ -10,6 +10,91 @@ bibliotheque ML "classique" (k-NN, arbres, forets...) puis evoluer
 vers un moteur d'inference/entrainement CPU-only compact, capable de
 faire tourner de petits modeles text-to-text (voir Partie 2).
 
+## Build
+
+```
+cmake -S . -B build -G Ninja
+cmake --build build
+ctest --test-dir build
+```
+
+## Utilisation dans un autre projet
+
+`chiikaml` n'est pas encore publie comme un paquet installable
+(`find_package`) - pour l'instant, on l'integre comme sous-projet
+CMake, de deux facons possibles.
+
+**En sous-module git**, si le code est deja recupere localement :
+```cmake
+add_subdirectory(chemin/vers/chiikaml)
+target_link_libraries(mon_programme PRIVATE chiikaml)
+```
+
+**Via FetchContent**, pour le recuperer directement depuis GitHub
+(meme mecanisme que celui utilise en interne pour Catch2) :
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+    chiikaml
+    GIT_REPOSITORY https://github.com/Alphaeo/chiikaml.git
+    GIT_TAG        master
+)
+FetchContent_MakeAvailable(chiikaml)
+
+target_link_libraries(mon_programme PRIVATE chiikaml)
+```
+
+Dans les deux cas, `target_include_directories(chiikaml PUBLIC ...)`
+dans le CMakeLists de `chiikaml` propage automatiquement les headers
+a quiconque lie la cible `chiikaml` - pas de chemin d'include a gerer
+a la main.
+
+### Exemple : classifier des points avec `KNNClassifier`
+
+```cpp
+#include <iostream>
+#include <vector>
+
+#include "chiikaml/matrix.hpp"
+#include "chiikaml/knn.hpp"
+
+using namespace chiikaml;
+
+int main() {
+    // 4 points d'entrainement, 2 features, 2 classes
+    Matrix X(4, 2);
+    X(0, 0) = 0.0; X(0, 1) = 0.0;  // classe 0
+    X(1, 0) = 0.0; X(1, 1) = 1.0;  // classe 0
+    X(2, 0) = 9.0; X(2, 1) = 9.0;  // classe 1
+    X(3, 0) = 9.0; X(3, 1) = 8.0;  // classe 1
+    std::vector<int> y = {0, 0, 1, 1};
+
+    KNNClassifier knn(1);
+    knn.fit(X, y);
+
+    Matrix query(1, 2);
+    query(0, 0) = 8.5;
+    query(0, 1) = 8.5;
+
+    std::vector<int> predictions = knn.predict(query);
+    std::cout << "Classe predite : " << predictions[0] << "\n"; // -> 1
+}
+```
+
+### Exemple : recherche rapide de voisins avec `KDTree`
+
+```cpp
+#include "chiikaml/kdtree.hpp"
+
+using namespace chiikaml;
+
+KDTree tree(X);  // X : une Matrix de points (voir ci-dessus)
+
+// Indices des 3 plus proches voisins de la ligne 0 de `query`,
+// tries du plus proche au plus loin.
+std::vector<std::size_t> neighbors = tree.nearest_neighbors(query, 0, 3);
+```
+
 ## Roadmap
 
 ### Partie 1 - Bibliotheque ML classique
@@ -84,10 +169,8 @@ utilisables en pratique. Pas de dependance GPU/CUDA obligatoire.
   d'inference chargeant des poids reels" rejoint la Partie 2
   (Phases 9 et 15 notamment).
 
-## Build
+## Licence
 
-```
-cmake -S . -B build -G Ninja
-cmake --build build
-ctest --test-dir build
-```
+[MIT](LICENSE) - libre d'utilisation, de modification et de
+redistribution, y compris a des fins commerciales, tant que la
+mention de copyright est conservee.
