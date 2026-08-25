@@ -11,6 +11,7 @@ add_executable(chiikaml_tests
     test_matrix.cpp
     test_knn.cpp
     test_kdtree.cpp
+    test_kmeans.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE

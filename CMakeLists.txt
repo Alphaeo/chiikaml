@@ -15,6 +15,7 @@ add_library(chiikaml
     src/matrix.cpp
     src/knn.cpp
     src/kdtree.cpp
+    src/kmeans.cpp
 )
 
 target_include_directories(chiikaml PUBLIC

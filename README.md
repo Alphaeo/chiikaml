@@ -168,6 +168,15 @@ utilisables en pratique. Pas de dependance GPU/CUDA obligatoire.
   appliquer progressivement a la Partie 1 ; le cote "vrai moteur
   d'inference chargeant des poids reels" rejoint la Partie 2
   (Phases 9 et 15 notamment).
+- Module(s) de visualisation integres : pouvoir visualiser facilement
+  toutes les metriques de perf, meme complexes (accuracy, temps
+  d'execution, matrices de confusion, clusters, courbes
+  d'entrainement, comparaisons quantization...) directement depuis
+  `chiikaml`, de maniere simple/ludique/accessible - sans avoir a
+  passer par un tas de bibliotheques externes (matplotlib/pandas/etc.)
+  comme aujourd'hui pour juste regarder un resultat. Portee exacte pas
+  encore decidee (rendu terminal/ASCII, export SVG, dashboard web
+  leger...) ; rejoint naturellement le benchmarking (Phase 7, Phase 20).
 
 ## Licence
 
