@@ -6,3 +6,6 @@ out/
 .vs/
 .vscode/ipch/
 CMakeUserPresets.json
+__pycache__/
+*.pyc
+.pytest_cache/
