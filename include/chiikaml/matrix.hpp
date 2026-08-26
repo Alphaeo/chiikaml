@@ -29,6 +29,22 @@ public:
     // les mêmes dimensions.
     Matrix operator+(const Matrix& other) const;
 
+    // Change les dimensions vers rows x cols. Les valeurs existantes
+    // dans la zone commune aux anciennes et nouvelles dimensions
+    // (min(rows(), rows) x min(cols(), cols)) sont préservées, à la
+    // bonne case (row, col) dans les deux cas. Toute case
+    // nouvellement créée (agrandissement) vaut 0.0. Toute case en
+    // dehors des nouvelles dimensions (rétrécissement) est perdue.
+    //
+    // Attention : contrairement à std::vector::resize, on ne peut pas
+    // se contenter de redimensionner data_ tel quel -- le stockage
+    // est row-major avec un "pas" (le nombre de colonnes) qui change
+    // potentiellement lui aussi. Il faut donc reconstruire un nouveau
+    // buffer et recopier case par case, en utilisant l'ANCIEN pas
+    // (cols()) pour lire dans l'ancien buffer et le NOUVEAU pas
+    // (cols, le paramètre) pour écrire dans le nouveau.
+    void resize(std::size_t rows, std::size_t cols);
+
 private:
     std::size_t rows_;
     std::size_t cols_;

@@ -16,7 +16,10 @@ namespace chiikaml {
 //   d'initialisation
 KMeans::KMeans(std::size_t n_clusters, std::size_t max_iterations, unsigned int seed)
     : centroids_(0, 0) {
-    throw std::logic_error("KMeans::KMeans pas encore implemente");
+    max_iterations_ = max_iterations;
+    n_clusters_ = n_clusters;
+    rng_ = std::mt19937(seed);
+    centroids_ = Matrix(n_clusters_, 0);
 }
 
 // TODO(toi): identique au squared_distance des modules precedents,
@@ -25,14 +28,31 @@ KMeans::KMeans(std::size_t n_clusters, std::size_t max_iterations, unsigned int 
 // (pas verifie ici pour rester simple, mais garde-le en tete).
 double KMeans::squared_distance(const Matrix& a, std::size_t row_a, const Matrix& b,
                                  std::size_t row_b) {
-    throw std::logic_error("KMeans::squared_distance pas encore implemente");
+    double squared_distance = 0;
+    if (a.cols() != b.cols()) {
+        throw std::invalid_argument("Matrices a et b doivent avoir le meme nombre de colonnes");
+    }
+    for (std::size_t j = 0; j < a.cols(); ++j) {
+        double diff = a(row_a, j) - b(row_b, j);
+        squared_distance += diff * diff;
+    }
+    return squared_distance;
 }
 
 // TODO(toi): calcule squared_distance entre la ligne `row` de
 // `points` et chaque ligne de centroids_ (n_clusters_ d'entre
 // elles), renvoie l'indice de la plus proche.
 std::size_t KMeans::nearest_centroid(const Matrix& points, std::size_t row) const {
-    throw std::logic_error("KMeans::nearest_centroid pas encore implemente");
+    std::size_t nearest_index = 0;
+    double min_distance = squared_distance(points, row, centroids_, 0);
+    for (std::size_t i = 1; i < n_clusters_; ++i){
+        double distance = squared_distance(points, row, centroids_, i);
+        if (distance < min_distance) {
+            min_distance = distance;
+            nearest_index = i;
+        }
+    }
+    return nearest_index;
 }
 
 // TODO(toi), etape par etape :
@@ -61,21 +81,69 @@ std::size_t KMeans::nearest_centroid(const Matrix& points, std::size_t row) cons
 //    c) si rien n'a change a l'etape (a), la solution a converge :
 //       sors de la boucle avant d'atteindre max_iterations_
 void KMeans::fit(const Matrix& X) {
-    throw std::logic_error("KMeans::fit pas encore implemente");
+    std::vector<std::size_t> indices(X.rows());
+    std::iota(indices.begin(), indices.end(), 0);
+    std::vector<std::size_t> sampled_indices;
+    std::sample(indices.begin(), indices.end(), std::back_inserter(sampled_indices), n_clusters_, rng_);
+    centroids_.resize(n_clusters_, X.cols());
+
+    for (std::size_t i = 0; i < n_clusters_; ++i) {
+        for(std::size_t j = 0; j < X.cols(); ++j) {
+            centroids_(i, j) = X(sampled_indices[i], j);
+        }
+    }
+
+    std::vector<std::size_t> new_labels(X.rows(), 0);
+    labels_.resize(X.rows(), 0);
+
+    for (std::size_t iteration = 0; iteration < max_iterations_; ++iteration){
+        bool changed = false;
+        for (std::size_t i = 0; i < X.rows(); ++i){
+            new_labels[i] = nearest_centroid(X, i);
+            if (new_labels[i] != labels_[i]) {
+                labels_[i] = new_labels[i];
+                changed = true;
+            }
+        }
+        if (!changed) {
+            break;
+        }
+        Matrix sums(n_clusters_, X.cols());
+        std::vector<std::size_t> counts(n_clusters_, 0);
+        for (std::size_t i = 0; i < X.rows(); ++i) {
+            std::size_t cluster = labels_[i];
+            for (std::size_t j = 0; j < X.cols(); ++j) {
+                sums(cluster, j) += X(i, j);
+            }
+        }
+        for (std::size_t i = 0; i < n_clusters_; ++i) {
+            counts[i] = std::count(labels_.begin(), labels_.end(), i);
+            if (counts[i] > 0) {
+                for (std::size_t j = 0; j < X.cols(); ++j) {
+                    centroids_(i, j) = sums(i, j) / counts[i];
+                }
+            }
+        }
+    }
+
 }
 
 // TODO(toi): pour chaque ligne de X, appelle nearest_centroid et
 // empile le resultat -- tres proche de KNNClassifier::predict().
 std::vector<std::size_t> KMeans::predict(const Matrix& X) const {
-    throw std::logic_error("KMeans::predict pas encore implemente");
+    std::vector<std::size_t> predictions(X.rows());
+    for (std::size_t i = 0; i < X.rows(); ++i) {
+        predictions[i] = nearest_centroid(X, i);
+    }
+    return predictions;
 }
 
 const std::vector<std::size_t>& KMeans::labels() const {
-    throw std::logic_error("KMeans::labels pas encore implemente");
+    return labels_;
 }
 
 const Matrix& KMeans::centroids() const {
-    throw std::logic_error("KMeans::centroids pas encore implemente");
+    return centroids_;
 }
 
 } // namespace chiikaml

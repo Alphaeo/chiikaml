@@ -43,3 +43,54 @@ TEST_CASE("L'addition de deux matrices se fait element par element", "[matrix]")
     REQUIRE(c(1, 0) == 33);
     REQUIRE(c(1, 1) == 44);
 }
+
+TEST_CASE("resize agrandit et remplit les nouvelles cases a zero, en gardant les anciennes valeurs", "[matrix]") {
+    Matrix m(2, 2);
+    m(0, 0) = 1; m(0, 1) = 2;
+    m(1, 0) = 3; m(1, 1) = 4;
+
+    m.resize(3, 3);
+
+    REQUIRE(m.rows() == 3);
+    REQUIRE(m.cols() == 3);
+
+    // Anciennes valeurs preservees
+    REQUIRE(m(0, 0) == 1);
+    REQUIRE(m(0, 1) == 2);
+    REQUIRE(m(1, 0) == 3);
+    REQUIRE(m(1, 1) == 4);
+
+    // Nouvelles cases a zero
+    REQUIRE(m(0, 2) == 0.0);
+    REQUIRE(m(1, 2) == 0.0);
+    REQUIRE(m(2, 0) == 0.0);
+    REQUIRE(m(2, 1) == 0.0);
+    REQUIRE(m(2, 2) == 0.0);
+}
+
+TEST_CASE("resize avec des dimensions asymetriques garde chaque valeur a la bonne case", "[matrix]") {
+    // 2x3, chaque case a une valeur distincte : (i, j) -> i*10 + j
+    Matrix m(2, 3);
+    for (std::size_t i = 0; i < 2; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            m(i, j) = static_cast<double>(i * 10 + j);
+        }
+    }
+
+    // Lignes qui augmentent (2 -> 3), colonnes qui diminuent (3 -> 2)
+    // en meme temps : piege classique si on confond l'ancien et le
+    // nouveau nombre de colonnes en recopiant les valeurs.
+    m.resize(3, 2);
+
+    REQUIRE(m.rows() == 3);
+    REQUIRE(m.cols() == 2);
+
+    REQUIRE(m(0, 0) == 0);   // etait (0,0) = 0*10+0
+    REQUIRE(m(0, 1) == 1);   // etait (0,1) = 0*10+1
+    REQUIRE(m(1, 0) == 10);  // etait (1,0) = 1*10+0
+    REQUIRE(m(1, 1) == 11);  // etait (1,1) = 1*10+1
+
+    // Nouvelle ligne, a zero
+    REQUIRE(m(2, 0) == 0.0);
+    REQUIRE(m(2, 1) == 0.0);
+}
