@@ -16,6 +16,7 @@ add_library(chiikaml
     src/knn.cpp
     src/kdtree.cpp
     src/kmeans.cpp
+    src/decision_tree.cpp
 )
 
 target_include_directories(chiikaml PUBLIC
@@ -33,3 +34,12 @@ endif()
 # --- Tests -------------------------------------------------------------
 enable_testing()
 add_subdirectory(tests)
+
+# --- Bindings Python (optionnel) ----------------------------------------
+# Desactive par defaut : le coeur C++ (bibliotheque + tests) ne doit
+# jamais dependre de Python. On ne construit ce sous-dossier que si on
+# le demande explicitement.
+option(CHIIKAML_BUILD_PYTHON "Build the pybind11 Python bindings" OFF)
+if(CHIIKAML_BUILD_PYTHON)
+    add_subdirectory(python)
+endif()
