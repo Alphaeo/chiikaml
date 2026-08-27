@@ -95,6 +95,35 @@ KDTree tree(X);  // X : une Matrix de points (voir ci-dessus)
 std::vector<std::size_t> neighbors = tree.nearest_neighbors(query, 0, 3);
 ```
 
+## Dashboard de visualisation (v1, experimental)
+
+Premiere version du "mode dashboard" note dans les decisions annexes :
+un serveur local (C++, via `chiikaml_viz`) + un frontend React,
+qui affichent un clustering `KMeans` dans le navigateur et se
+mettent a jour en direct (Server-Sent Events) sans rouvrir d'onglet.
+Desactive par defaut (`CHIIKAML_BUILD_VIZ`), pas encore lie a
+`find_package`/embarque dans le binaire -- le frontend doit etre
+compile separement et le serveur sert ses fichiers depuis le disque.
+
+```
+# 1. Compiler le frontend (une fois, ou apres modification)
+cd viz/frontend
+npm install
+npm run build
+cd ../..
+
+# 2. Compiler et lancer la demo (depuis la racine du repo, pour que
+#    le chemin relatif vers viz/frontend/dist soit correct)
+cmake -S . -B build -G Ninja -DCHIIKAML_BUILD_VIZ=ON
+cmake --build build --target chiikaml_kmeans_viz_demo
+./build/viz/chiikaml_kmeans_viz_demo
+```
+
+Ouvre `http://localhost:8787` (ou laisse le programme ouvrir le
+navigateur automatiquement). Le mode "briques" (editeur no-code)
+reste a construire, vise plutot avec une compilation WASM de
+`chiikaml`.
+
 ## Roadmap
 
 ### Partie 1 - Bibliotheque ML classique
@@ -174,16 +203,31 @@ utilisables en pratique. Pas de dependance GPU/CUDA obligatoire.
   d'entrainement, comparaisons quantization...) directement depuis
   `chiikaml`, de maniere simple/ludique/accessible - sans avoir a
   passer par un tas de bibliotheques externes (matplotlib/pandas/etc.)
-  comme aujourd'hui pour juste regarder un resultat. Architecture
-  envisagee (precisee le 2026-08-25) : une methode de la bibliotheque
-  ouvre, au premier appel, une petite app web locale (serveur
-  HTTP+WebSocket embarque en C++ dans un thread separe + frontend
-  React) affichant les metriques ; les appels suivants poussent de
-  nouvelles donnees sur la connexion deja ouverte pour mettre a jour
-  la meme page en direct, plutot que de rouvrir un onglet a chaque
-  fois - meme principe que TensorBoard, mais auto-heberge, sans
-  service externe. Pas encore d'implementation ; rejoint naturellement
-  le benchmarking (Phase 7, Phase 20).
+  comme aujourd'hui pour juste regarder un resultat.
+
+  Une seule application web React, avec deux modes distincts (precise
+  le 2026-08-27) :
+    - **Mode dashboard** (`model.visualize()`) : une methode PAR CLASSE
+      (chaque modele sait dessiner ce qui le concerne : KMeans -> nuage
+      de points + centres, DecisionTreeClassifier -> diagramme de
+      l'arbre, etc.). Architecture (precisee le 2026-08-25) : le
+      premier appel ouvre une petite app web locale (serveur
+      HTTP+WebSocket embarque en C++ dans un thread separe + le
+      frontend React) affichant les donnees du modele ; les appels
+      suivants poussent de nouvelles donnees sur la connexion deja
+      ouverte pour mettre a jour la meme page en direct, plutot que de
+      rouvrir un onglet a chaque fois - meme principe que TensorBoard,
+      mais auto-heberge, sans service externe.
+    - **Mode "briques"** : un editeur visuel no-code separe (glisser des
+      blocs representant les fonctions/classes de `chiikaml`, les
+      connecter, pour composer un petit algo sans ecrire de C++). Projet
+      distinct et plus gros que le mode dashboard - a viser plutot avec
+      une compilation WASM de `chiikaml` (tourne entierement dans le
+      navigateur, sans lancer de programme C++ local) plutot qu'avec le
+      serveur embarque du mode dashboard.
+
+  Pas encore d'implementation pour aucun des deux modes ; rejoint
+  naturellement le benchmarking (Phase 7, Phase 20).
 
 ## Licence
 

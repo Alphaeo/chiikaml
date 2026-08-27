@@ -17,6 +17,7 @@ add_library(chiikaml
     src/kdtree.cpp
     src/kmeans.cpp
     src/decision_tree.cpp
+    src/random_forest.cpp
 )
 
 target_include_directories(chiikaml PUBLIC
@@ -24,6 +25,12 @@ target_include_directories(chiikaml PUBLIC
 )
 
 target_compile_features(chiikaml PUBLIC cxx_std_20)
+
+# std::thread a besoin d'etre explicitement lie a la bibliotheque
+# threads de la plateforme (pthread sous MinGW/Linux) -- sans ca,
+# erreur de lien a la compilation de random_forest.cpp.
+find_package(Threads REQUIRED)
+target_link_libraries(chiikaml PUBLIC Threads::Threads)
 
 if(MSVC)
     target_compile_options(chiikaml PUBLIC /W4)
@@ -42,4 +49,12 @@ add_subdirectory(tests)
 option(CHIIKAML_BUILD_PYTHON "Build the pybind11 Python bindings" OFF)
 if(CHIIKAML_BUILD_PYTHON)
     add_subdirectory(python)
+endif()
+
+# --- Dashboard de visualisation (optionnel) ------------------------------
+# Meme principe que CHIIKAML_BUILD_PYTHON : desactive par defaut, le
+# coeur chiikaml ne doit jamais dependre d'un serveur HTTP/JSON.
+option(CHIIKAML_BUILD_VIZ "Build the local visualization dashboard" OFF)
+if(CHIIKAML_BUILD_VIZ)
+    add_subdirectory(viz)
 endif()
