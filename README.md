@@ -134,7 +134,7 @@ reste a construire, vise plutot avec une compilation WASM de
 - [x] Phase 3 - KD-Tree pour un k-NN rapide
 - [x] Phase 4 - K-Means
 - [x] Phase 5 - Arbre de decision (CART, gini/entropie)
-- [ ] Phase 6 - Random Forest (bagging + multithreading)
+- [x] Phase 6 - Random Forest (bagging + multithreading)
 - [ ] Phase 7 - Optimisation : benchmarks, profiling, SIMD, cache
 - [ ] Phase 8 - Polish : CLI, benchmarks vs sklearn, CI
 

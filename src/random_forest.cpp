@@ -10,7 +10,10 @@ namespace chiikaml {
 // trees_ reste un vector<DecisionTreeClassifier> vide jusqu'a fit().
 RandomForestClassifier::RandomForestClassifier(std::size_t n_trees, std::size_t max_depth,
                                                  std::size_t min_samples_split, unsigned int seed) {
-    throw std::logic_error("RandomForestClassifier::RandomForestClassifier pas encore implemente");
+    n_trees_ = n_trees;
+    max_depth_ = max_depth;
+    min_samples_split_ = min_samples_split;
+    seed_ = seed;
 }
 
 // TODO(toi):
@@ -26,14 +29,39 @@ RandomForestClassifier::RandomForestClassifier(std::size_t n_trees, std::size_t 
 std::pair<Matrix, std::vector<int>> RandomForestClassifier::bootstrap_sample(const Matrix& X,
                                                                                const std::vector<int>& y,
                                                                                std::mt19937& rng) {
-    throw std::logic_error("RandomForestClassifier::bootstrap_sample pas encore implemente");
+    Matrix X_sample(X.rows(), X.cols());
+    std::vector<int> y_sample;
+    y_sample.reserve(X.rows());
+
+    std::uniform_int_distribution<std::size_t> dist(0, X.rows() - 1);
+    for (std::size_t i = 0; i < X.rows(); ++i) {
+        std::size_t idx = dist(rng);
+        for (std::size_t j = 0; j < X.cols(); ++j) {
+            X_sample(i, j) = X(idx, j);
+        }
+        y_sample.push_back(y[idx]);
+    }
+    return {X_sample, y_sample};
 }
 
 // TODO(toi): identique au vote majoritaire deja ecrit dans
 // KNNClassifier/DecisionTreeClassifier (unordered_map<int, size_t>
 // qui compte, on garde le plus grand compte).
 int RandomForestClassifier::majority_vote(const std::vector<int>& votes) {
-    throw std::logic_error("RandomForestClassifier::majority_vote pas encore implemente");
+    std::unordered_map<int, std::size_t> vote_counts;
+    for (const auto& vote : votes) {
+        vote_counts[vote]++;
+    }
+
+    int majority_class = votes[0];
+    std::size_t max_count = 0;
+    for (const auto& [label, count] : vote_counts) {
+        if (count > max_count) {
+            max_count = count;
+            majority_class = label;
+        }
+    }
+    return majority_class;
 }
 
 // TODO(toi), etape par etape :
@@ -58,7 +86,19 @@ int RandomForestClassifier::majority_vote(const std::vector<int>& votes) {
 //    threads, appelle .join() (sinon le programme plante en quittant
 //    fit() avec des threads encore actifs)
 void RandomForestClassifier::fit(const Matrix& X, std::vector<int> y) {
-    throw std::logic_error("RandomForestClassifier::fit pas encore implemente");
+    trees_.reserve(n_trees_);
+    std::vector<std::thread> threads;
+    for (std::size_t t = 0; t < n_trees_; ++t){
+        trees_.emplace_back(max_depth_, min_samples_split_);
+        threads.emplace_back([this, &X, &y, t]() {
+            std::mt19937 rng(seed_ + t);
+            auto [X_sample, y_sample] = bootstrap_sample(X, y, rng);
+            trees_[t].fit(X_sample, std::move(y_sample));
+        });
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
 }
 
 // TODO(toi):
@@ -69,7 +109,20 @@ void RandomForestClassifier::fit(const Matrix& X, std::vector<int> y) {
 // - pour chaque ligne i de X, rassemble le vote de chaque arbre a
 //   la position i, et appelle majority_vote dessus
 std::vector<int> RandomForestClassifier::predict(const Matrix& X) const {
-    throw std::logic_error("RandomForestClassifier::predict pas encore implemente");
+    std::vector<std::vector<int>> predictions;
+    for (const auto& tree : trees_) {
+        auto tree_predictions = tree.predict(X);
+        predictions.push_back(std::move(tree_predictions));
+    }
+    std::vector<int> final_predictions;
+    for (std::size_t i = 0; i < X.rows(); ++i) {
+        std::vector<int> votes;
+        for (const auto& preds : predictions) {
+            votes.push_back(preds[i]);
+        }
+        final_predictions.push_back(majority_vote(votes));
+    }
+    return final_predictions;
 }
 
 } // namespace chiikaml
