@@ -3,10 +3,12 @@
 #include <pybind11/stl.h>
 #include <sstream>
 
+#include "chiikaml/decision_tree.hpp"
 #include "chiikaml/kdtree.hpp"
 #include "chiikaml/kmeans.hpp"
 #include "chiikaml/knn.hpp"
 #include "chiikaml/matrix.hpp"
+#include "chiikaml/random_forest.hpp"
 
 namespace py = pybind11;
 using namespace chiikaml;
@@ -40,12 +42,32 @@ PYBIND11_MODULE(chiikaml, m) {
              })
         .def(py::self + py::self);
 
-    // TODO(toi) : bind KNNClassifier, KDTree, KMeans.
-    // Une fois Matrix fait, ces trois-la suivent le meme schema simple :
-    // constructeur + methodes publiques bindees une par une avec
-    // `.def("nom_python", &Classe::methode)`. Aucune n'a besoin
-    // d'adaptation particuliere comme Matrix (pas d'operator(),
-    // pas d'operator<<) -- leurs methodes publiques (fit, predict,
-    // nearest_neighbors, labels, centroids...) se bindent telles
-    // quelles.
+    py::class_<KNNClassifier>(m, "KNNClassifier")
+        .def(py::init<std::size_t>(), py::arg("k"))
+        .def("fit", &KNNClassifier::fit, py::arg("X"), py::arg("y"))
+        .def("predict", &KNNClassifier::predict, py::arg("X"));
+
+    py::class_<KDTree>(m, "KDTree")
+        .def(py::init<const Matrix&>(), py::arg("points"))
+        .def("nearest_neighbors", &KDTree::nearest_neighbors, py::arg("query"), py::arg("query_row"),
+             py::arg("k"));
+
+    py::class_<KMeans>(m, "KMeans")
+        .def(py::init<std::size_t, std::size_t, unsigned int>(), py::arg("n_clusters"),
+             py::arg("max_iterations") = 100, py::arg("seed") = 42)
+        .def("fit", &KMeans::fit, py::arg("X"))
+        .def("predict", &KMeans::predict, py::arg("X"))
+        .def("labels", &KMeans::labels, py::return_value_policy::copy)
+        .def("centroids", &KMeans::centroids, py::return_value_policy::copy);
+
+    py::class_<DecisionTreeClassifier>(m, "DecisionTreeClassifier")
+        .def(py::init<std::size_t, std::size_t>(), py::arg("max_depth") = 5, py::arg("min_samples_split") = 2)
+        .def("fit", &DecisionTreeClassifier::fit, py::arg("X"), py::arg("y"))
+        .def("predict", &DecisionTreeClassifier::predict, py::arg("X"));
+
+    py::class_<RandomForestClassifier>(m, "RandomForestClassifier")
+        .def(py::init<std::size_t, std::size_t, std::size_t, unsigned int>(), py::arg("n_trees") = 10,
+             py::arg("max_depth") = 5, py::arg("min_samples_split") = 2, py::arg("seed") = 42)
+        .def("fit", &RandomForestClassifier::fit, py::arg("X"), py::arg("y"))
+        .def("predict", &RandomForestClassifier::predict, py::arg("X"));
 }

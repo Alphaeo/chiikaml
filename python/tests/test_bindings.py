@@ -92,3 +92,35 @@ def test_kmeans_fit_predict():
     assert labels[0] == labels[1]
     assert labels[2] == labels[3]
     assert labels[0] != labels[2]
+
+
+def _two_clusters():
+    X = chiikaml.Matrix(6, 2)
+    X[0, 0], X[0, 1] = 0.0, 0.0
+    X[1, 0], X[1, 1] = 0.0, 1.0
+    X[2, 0], X[2, 1] = 1.0, 0.0
+    X[3, 0], X[3, 1] = 10.0, 10.0
+    X[4, 0], X[4, 1] = 10.0, 11.0
+    X[5, 0], X[5, 1] = 11.0, 10.0
+    y = [0, 0, 0, 1, 1, 1]
+    return X, y
+
+
+def test_decision_tree_classifier_fit_predict():
+    X, y = _two_clusters()
+
+    tree = chiikaml.DecisionTreeClassifier()
+    tree.fit(X, y)
+
+    predictions = tree.predict(X)
+    assert predictions == y
+
+
+def test_random_forest_classifier_fit_predict():
+    X, y = _two_clusters()
+
+    forest = chiikaml.RandomForestClassifier(10, 5, 2, 42)
+    forest.fit(X, y)
+
+    predictions = forest.predict(X)
+    assert predictions == y
