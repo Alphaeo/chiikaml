@@ -207,27 +207,88 @@ utilisables en pratique. Pas de dependance GPU/CUDA obligatoire.
 
   Une seule application web React, avec deux modes distincts (precise
   le 2026-08-27) :
-    - **Mode dashboard** (`model.visualize()`) : une methode PAR CLASSE
-      (chaque modele sait dessiner ce qui le concerne : KMeans -> nuage
-      de points + centres, DecisionTreeClassifier -> diagramme de
-      l'arbre, etc.). Architecture (precisee le 2026-08-25) : le
-      premier appel ouvre une petite app web locale (serveur
-      HTTP+WebSocket embarque en C++ dans un thread separe + le
-      frontend React) affichant les donnees du modele ; les appels
-      suivants poussent de nouvelles donnees sur la connexion deja
-      ouverte pour mettre a jour la meme page en direct, plutot que de
-      rouvrir un onglet a chaque fois - meme principe que TensorBoard,
-      mais auto-heberge, sans service externe.
+    - **Mode dashboard** - **v1 implementee**, voir section
+      "Dashboard de visualisation" plus haut : une fonction libre par
+      modele (`chiikaml::viz::visualize(model, X)`, pas une methode
+      `model.visualize()` - garde le coeur `chiikaml` independant de
+      json/http, meme principe que les bindings Python), qui ouvre au
+      premier appel une petite app web locale (serveur HTTP embarque
+      en C++ dans un thread separe + frontend React) et pousse les
+      mises a jour suivantes en direct via Server-Sent Events sur la
+      meme page (pas de nouvel onglet) - meme principe que
+      TensorBoard, auto-heberge. Pour l'instant : seulement `KMeans`
+      (nuage de points 2D), assets non embarques dans le binaire.
+      Etendre aux autres modeles (arbre de decision, foret...) reste a
+      faire.
     - **Mode "briques"** : un editeur visuel no-code separe (glisser des
       blocs representant les fonctions/classes de `chiikaml`, les
       connecter, pour composer un petit algo sans ecrire de C++). Projet
       distinct et plus gros que le mode dashboard - a viser plutot avec
       une compilation WASM de `chiikaml` (tourne entierement dans le
       navigateur, sans lancer de programme C++ local) plutot qu'avec le
-      serveur embarque du mode dashboard.
+      serveur embarque du mode dashboard. Pas encore d'implementation.
 
-  Pas encore d'implementation pour aucun des deux modes ; rejoint
-  naturellement le benchmarking (Phase 7, Phase 20).
+  Rejoint naturellement le benchmarking (Phase 7, Phase 20).
+
+## Ecosysteme : projets suivants
+
+### chiikaAgent (idee notee le 2026-08-27 - projet separe, pas encore commence)
+
+Un framework de construction d'agents (dans l'esprit de LangChain /
+Google ADK), pense pour l'efficacite des le depart plutot qu'ajoutee
+apres coup, et adosse au moteur d'inference local de `chiikaml`
+(Partie 2) plutot qu'exclusivement a des API distantes. **Projet
+separe** de `chiikaml` (probablement un repo a part qui *depend* de
+`chiikaml`), pas une "Partie 3" ajoutee a la roadmap ci-dessus - le
+domaine (orchestration d'agents) est trop different de "algorithmes
+ML en C++" pour rentrer dans les memes phases.
+
+**Ce qui le differencierait de LangChain/ADK, dans l'ordre
+d'importance :**
+
+1. **Un vrai moteur local, pas juste de la colle autour d'API.**
+   LangChain/ADK orchestrent des appels a des API distantes (OpenAI,
+   Gemini...) - ils n'ont pas de moteur d'inference a eux. Une fois la
+   Partie 2 de `chiikaml` mature (Phases 9-20 : tenseurs, Transformer,
+   quantization, KV-cache), `chiikaAgent` pourrait faire tourner des
+   agents sur un modele local efficace, sans dependre d'un service
+   externe pour chaque etape - moins cher, plus rapide, utilisable
+   hors-ligne. Toujours supporter les API distantes en option (les
+   modeles de pointe restent utiles), mais le moteur local serait le
+   vrai argument face a LangChain/ADK.
+
+2. **Des superviseurs en arriere-plan qui optimisent les agents
+   pendant qu'ils tournent.** L'idee centrale de l'utilisateur : des
+   "meta-agents" qui surveillent les agents en cours d'execution pour :
+   - reduire la consommation de tokens (detecter et compresser le
+     contexte qui grossit inutilement, resumer l'historique plutot que
+     tout garder en clair - le meme genre de probleme que la
+     compression de contexte des outils comme Claude Code, mais
+     applique automatiquement a des agents qu'on construit soi-meme)
+   - detecter les appels d'outils redondants ou inutiles (appeler
+     deux fois la meme recherche, refaire un calcul deja fait) et les
+     court-circuiter
+   - imposer un budget de tokens/cout par execution d'agent, pour
+     arreter une boucle qui deviendrait incontrolable
+   C'est la partie la plus originale et la moins bien resolue par
+   l'ecosysteme actuel des frameworks d'agents.
+
+3. **Reutiliser les structures de donnees deja construites dans
+   `chiikaml`** pour la memoire semantique des agents : `KDTree`/k-NN
+   (Phases 2-3) sont exactement ce qu'il faut pour une recherche par
+   similarite dans une memoire vectorielle - pas besoin de
+   reimplementer un moteur de recherche vectorielle a part.
+
+4. **Probablement un coeur C++** (comme `chiikaml`), avec des bindings
+   Python via `pybind11` (meme mecanisme que celui deja en place pour
+   `chiikaml`) - pour que la logique d'orchestration/surveillance,
+   potentiellement executee tres frequemment, ait le moins de surcout
+   possible ; les appels au(x) modele(s) (locaux ou distants) restent
+   la partie dominee par les I/O de toute facon.
+
+Aucun code ecrit pour l'instant - garder cette idee en tete pour
+apres que la Partie 2 de `chiikaml` soit assez avancee pour servir de
+moteur local.
 
 ## Licence
 
