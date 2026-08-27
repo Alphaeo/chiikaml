@@ -104,7 +104,7 @@ std::vector<std::size_t> neighbors = tree.nearest_neighbors(query, 0, 3);
 - [x] Phase 2 - k-NN (brute-force) + metriques de distance
 - [x] Phase 3 - KD-Tree pour un k-NN rapide
 - [x] Phase 4 - K-Means
-- [ ] Phase 5 - Arbre de decision (CART, gini/entropie)
+- [x] Phase 5 - Arbre de decision (CART, gini/entropie)
 - [ ] Phase 6 - Random Forest (bagging + multithreading)
 - [ ] Phase 7 - Optimisation : benchmarks, profiling, SIMD, cache
 - [ ] Phase 8 - Polish : CLI, benchmarks vs sklearn, CI
