@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      # On ne construit QUE ce qui est actif par defaut (chiikaml,
+      # les tests, les benchmarks) -- CHIIKAML_BUILD_PYTHON et
+      # CHIIKAML_BUILD_VIZ sont desactives par defaut et demandent
+      # des dependances systeme supplementaires (Python dev headers,
+      # Node.js) pas installees ici pour l'instant.
+      - name: Build
+        run: cmake --build build
+
+      # Les benchmarks sont construits (pour verifier qu'ils
+      # compilent), mais jamais executes ici : leurs mesures
+      # dependraient du hardware imprevisible d'un runner CI partage,
+      # pas pertinent a comparer d'une execution a l'autre.
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
