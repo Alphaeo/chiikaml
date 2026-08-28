@@ -16,6 +16,7 @@ FetchContent_MakeAvailable(googlebenchmark)
 add_executable(chiikaml_benchmarks
     bench_knn_vs_kdtree.cpp
     bench_random_forest_threading.cpp
+    bench_matrix_layout.cpp
 )
 
 target_link_libraries(chiikaml_benchmarks PRIVATE

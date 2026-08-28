@@ -38,6 +38,21 @@ else()
     target_compile_options(chiikaml PUBLIC -Wall -Wextra -Wpedantic)
 endif()
 
+# Desactive par defaut : -mavx2 genere du code qui plante ("illegal
+# instruction") sur un CPU qui ne supporte pas AVX2 (grosso modo,
+# avant ~2013). A activer explicitement (-DCHIIKAML_ENABLE_AVX2=ON)
+# si on sait que la machine cible le supporte -- ce qui est le cas de
+# la grande majorite des machines aujourd'hui, mais ce n'est pas une
+# garantie universelle comme -O3 l'est.
+option(CHIIKAML_ENABLE_AVX2 "Compile with AVX2 SIMD instructions (requires a CPU from ~2013+)" OFF)
+if(CHIIKAML_ENABLE_AVX2)
+    if(MSVC)
+        target_compile_options(chiikaml PUBLIC /arch:AVX2)
+    else()
+        target_compile_options(chiikaml PUBLIC -mavx2)
+    endif()
+endif()
+
 # --- Tests -------------------------------------------------------------
 enable_testing()
 add_subdirectory(tests)
