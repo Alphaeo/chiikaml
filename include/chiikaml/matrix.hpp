@@ -18,12 +18,24 @@ public:
     // Construit une matrice rows x cols, initialisee a 0.0.
     Matrix(std::size_t rows, std::size_t cols);
 
-    std::size_t rows() const;
-    std::size_t cols() const;
+    // Definies directement dans la classe (donc implicitement
+    // `inline`) plutot que dans matrix.cpp : ce sont des accesseurs
+    // triviaux, appeles dans les boucles chaudes de tous les autres
+    // modules (KNNClassifier, KDTree, KMeans, RandomForest...).
+    // Si elles vivaient dans matrix.cpp, le compilateur ne pourrait
+    // pas "voir a travers" l'appel depuis un autre fichier .cpp
+    // (une autre unite de compilation) -- il devrait supposer par
+    // prudence qu'elles peuvent modifier n'importe quoi en memoire,
+    // ce qui bloque l'auto-vectorisation des boucles qui les
+    // appellent. Verifie empiriquement avec `-fopt-info-vec-all` :
+    // avant ce changement, GCC refusait de vectoriser la boucle de
+    // KNNClassifier::squared_distance() pour exactement cette raison.
+    std::size_t rows() const { return rows_; }
+    std::size_t cols() const { return cols_; }
 
     // Accès lecture/écriture à l'élément (row, col).
-    double& operator()(std::size_t row, std::size_t col);
-    double operator()(std::size_t row, std::size_t col) const;
+    double& operator()(std::size_t row, std::size_t col) { return data_[row * cols_ + col]; }
+    double operator()(std::size_t row, std::size_t col) const { return data_[row * cols_ + col]; }
 
     // Addition élément par élément. Les deux matrices doivent avoir
     // les mêmes dimensions.
