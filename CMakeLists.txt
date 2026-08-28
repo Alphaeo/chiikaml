@@ -68,6 +68,15 @@ if(CHIIKAML_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
 
+# --- CLI (Phase 8) --------------------------------------------------------
+# Actif par defaut, meme raisonnement que CHIIKAML_BUILD_BENCHMARKS :
+# CLI11 est une dependance C++ normale (header-only), pas une
+# extension vers un autre ecosysteme.
+option(CHIIKAML_BUILD_CLI "Build the chiikaml_cli command-line tool" ON)
+if(CHIIKAML_BUILD_CLI)
+    add_subdirectory(cli)
+endif()
+
 # --- Bindings Python (optionnel) ----------------------------------------
 # Desactive par defaut : le coeur C++ (bibliotheque + tests) ne doit
 # jamais dependre de Python. On ne construit ce sous-dossier que si on
