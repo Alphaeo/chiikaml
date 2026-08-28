@@ -42,6 +42,17 @@ endif()
 enable_testing()
 add_subdirectory(tests)
 
+# --- Benchmarks (Phase 7) ------------------------------------------------
+# Contrairement a CHIIKAML_BUILD_PYTHON/CHIIKAML_BUILD_VIZ, actif par
+# defaut : Google Benchmark est une dependance C++ normale (comme
+# Catch2), pas une extension vers un autre ecosysteme -- et mesurer la
+# perf fait partie du travail de la Phase 7 en cours, pas une option
+# annexe.
+option(CHIIKAML_BUILD_BENCHMARKS "Build Google Benchmark microbenchmarks" ON)
+if(CHIIKAML_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
+
 # --- Bindings Python (optionnel) ----------------------------------------
 # Desactive par defaut : le coeur C++ (bibliotheque + tests) ne doit
 # jamais dependre de Python. On ne construit ce sous-dossier que si on
