@@ -94,3 +94,26 @@ TEST_CASE("resize avec des dimensions asymetriques garde chaque valeur a la bonn
     REQUIRE(m(2, 0) == 0.0);
     REQUIRE(m(2, 1) == 0.0);
 }
+
+TEST_CASE("from_csv charge un fichier CSV valide", "[matrix]") {
+    Matrix m = Matrix::from_csv(std::string(CHIIKAML_TEST_DATA_DIR) + "/sample.csv");
+
+    REQUIRE(m.rows() == 2);
+    REQUIRE(m.cols() == 3);
+    REQUIRE(m(0, 0) == 1);
+    REQUIRE(m(0, 1) == 2);
+    REQUIRE(m(0, 2) == 3);
+    REQUIRE(m(1, 0) == 4);
+    REQUIRE(m(1, 1) == 5);
+    REQUIRE(m(1, 2) == 6);
+}
+
+TEST_CASE("from_csv leve une exception si le fichier n'existe pas", "[matrix]") {
+    REQUIRE_THROWS_AS(Matrix::from_csv(std::string(CHIIKAML_TEST_DATA_DIR) + "/does_not_exist.csv"),
+                       std::runtime_error);
+}
+
+TEST_CASE("from_csv leve une exception si les lignes n'ont pas le meme nombre de colonnes", "[matrix]") {
+    REQUIRE_THROWS_AS(Matrix::from_csv(std::string(CHIIKAML_TEST_DATA_DIR) + "/mismatched_columns.csv"),
+                       std::invalid_argument);
+}

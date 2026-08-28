@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace chiikaml {
@@ -56,6 +57,19 @@ public:
     // (cols()) pour lire dans l'ancien buffer et le NOUVEAU pas
     // (cols, le paramètre) pour écrire dans le nouveau.
     void resize(std::size_t rows, std::size_t cols);
+
+    // Charge une matrice depuis un fichier CSV : une ligne de texte
+    // = une ligne de la matrice, des valeurs numeriques separees par
+    // des virgules. Pas d'en-tete de colonnes suppose -- toutes les
+    // lignes du fichier doivent etre numeriques. Leve
+    // std::runtime_error si le fichier ne peut pas etre ouvert,
+    // std::invalid_argument si les lignes n'ont pas toutes le meme
+    // nombre de colonnes.
+    //
+    // static : pas besoin d'une Matrix deja existante pour appeler
+    // ca -- on l'appelle directement sur la classe, comme
+    // Matrix::from_csv("data.csv"), pas m.from_csv(...).
+    static Matrix from_csv(const std::string& path);
 
 private:
     std::size_t rows_;

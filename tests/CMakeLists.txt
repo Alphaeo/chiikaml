@@ -21,6 +21,13 @@ target_link_libraries(chiikaml_tests PRIVATE
     Catch2::Catch2WithMain
 )
 
+# Chemin absolu (calcule a la compilation) vers tests/data/, pour que
+# les tests trouvent les fichiers CSV peu importe le repertoire de
+# travail depuis lequel ctest/l'executable est lance.
+target_compile_definitions(chiikaml_tests PRIVATE
+    CHIIKAML_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+)
+
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
 include(Catch)
