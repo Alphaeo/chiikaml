@@ -107,6 +107,14 @@ public:
     // Préferable à Matrix x = a.inv() * b; car évite de calculer toute l’inverse donc plus efficace.
     Matrix solve(const Matrix& b) const;
 
+    // Resout le systeme lineaire Ax = b, ou A est la matrice courante, en utilisant la decomposition de Cholesky.
+    // Leve std::invalid_argument si la matrice n'est pas carree ou si le nombre de lignes de b ne correspond pas.
+    // Leve std::runtime_error si A n'est pas definie positive.
+    // Préferable quand A est symetrique definie positive, car plus efficace que la decomposition LU.
+    // A utiliser pour les problemes de regression lineaire, ou A = X^T * X.
+
+    Matrix solve_cholesky(const Matrix& b) const;
+
 
 
 private:

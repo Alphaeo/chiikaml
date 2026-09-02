@@ -258,7 +258,7 @@ TEST_CASE("A singular matrix cannot be inverted", "[matrix]") {
     REQUIRE_THROWS_AS(m.inv(), std::runtime_error);
 }
 
-TEST_CASE("solve correctly solves a 2x2 linear system", "[matrix]") {
+TEST_CASE("solve correctly solves a 2x2 linear system using LU decomposition", "[matrix]") {
     Matrix a(2, 2);
 
     a(0, 0) = 1;
@@ -278,6 +278,29 @@ TEST_CASE("solve correctly solves a 2x2 linear system", "[matrix]") {
 
     REQUIRE(x(0, 0) == Catch::Approx(1.0));
     REQUIRE(x(1, 0) == Catch::Approx(2.0));
+}
+
+TEST_CASE("Cholesky solve correctly solves a positive definite system",
+          "[matrix]") {
+    Matrix a(2, 2);
+
+    a(0, 0) = 4;
+    a(0, 1) = 2;
+    a(1, 0) = 2;
+    a(1, 1) = 5;
+
+    Matrix b(2, 1);
+
+    b(0, 0) = 8;
+    b(1, 0) = 12;
+
+    Matrix x = a.solve_cholesky(b);
+
+    REQUIRE(x.rows() == 2);
+    REQUIRE(x.cols() == 1);
+
+    REQUIRE(x(0, 0) == Catch::Approx(1.0).margin(1e-12));
+    REQUIRE(x(1, 0) == Catch::Approx(2.0).margin(1e-12));
 }
 
 TEST_CASE("from_csv charge un fichier CSV valide", "[matrix]") {

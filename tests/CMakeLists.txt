@@ -14,6 +14,7 @@ add_executable(chiikaml_tests
     test_kmeans.cpp
     test_decision_tree.cpp
     test_random_forest.cpp
+    test_linear_regression.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE

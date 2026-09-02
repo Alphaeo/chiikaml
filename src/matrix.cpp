@@ -571,6 +571,81 @@ Matrix Matrix::solve(const Matrix& b) const {
 
     return solution;
 }
-}
 
+Matrix Matrix::solve_cholesky(const Matrix& b) const {
+    if (rows_ != cols_) {
+        throw std::invalid_argument("The matrix must be square");
+    }
+
+    if (b.rows_ != rows_) {
+        throw std::invalid_argument(
+            "The number of rows of B must match the size of A"
+        );
+    }
+
+    const std::size_t n = rows_;
+    const std::size_t rhs_cols = b.cols_;
+
+    if (n == 0) {
+        return Matrix(0, rhs_cols);
+    }
+
+    // Compute the lower-triangular Cholesky factor L such that:
+    //
+    //     A = L * L^T
+    Matrix lower(n, n);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j <= i; ++j) {
+            double value = (*this)(i, j);
+
+            for (std::size_t k = 0; k < j; ++k) {
+                value -= lower(i, k) * lower(j, k);
+            }
+
+            if (i == j) {
+                if (value <= 0.0) {
+                    throw std::runtime_error(
+                        "The matrix is not positive definite"
+                    );
+                }
+
+                lower(i, j) = std::sqrt(value);
+            } else {
+                lower(i, j) = value / lower(j, j);
+            }
+        }
+    }
+
+    Matrix solution = b;
+
+    // Forward substitution: solve L * Y = B.
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t column = 0; column < rhs_cols; ++column) {
+            double value = solution(i, column);
+
+            for (std::size_t k = 0; k < i; ++k) {
+                value -= lower(i, k) * solution(k, column);
+            }
+
+            solution(i, column) = value / lower(i, i);
+        }
+    }
+
+    // Back substitution: solve L^T * X = Y.
+    for (std::size_t ii = n; ii-- > 0;) {
+        for (std::size_t column = 0; column < rhs_cols; ++column) {
+            double value = solution(ii, column);
+
+            for (std::size_t k = ii + 1; k < n; ++k) {
+                value -= lower(k, ii) * solution(k, column);
+            }
+
+            solution(ii, column) = value / lower(ii, ii);
+        }
+    }
+
+    return solution;
+}
+}
 // namespace chiikaml
