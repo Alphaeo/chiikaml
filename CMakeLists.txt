@@ -18,6 +18,7 @@ add_library(chiikaml
     src/kmeans.cpp
     src/decision_tree.cpp
     src/random_forest.cpp
+    src/tensor.cpp
 )
 
 target_include_directories(chiikaml PUBLIC
