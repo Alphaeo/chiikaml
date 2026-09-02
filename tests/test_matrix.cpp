@@ -14,6 +14,8 @@ TEST_CASE("Les elements sont initialises a zero", "[matrix]") {
     Matrix m(2, 2);
     REQUIRE(m(0, 0) == 0.0);
     REQUIRE(m(1, 1) == 0.0);
+    REQUIRE(m(0, 1) == 0.0);
+    REQUIRE(m(1, 0) == 0.0);
 }
 
 TEST_CASE("On peut lire et ecrire un element via operator()", "[matrix]") {
