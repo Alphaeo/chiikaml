@@ -56,6 +56,32 @@ int main(int argc, char** argv) {
     //
     // 5) Affiche chaque prediction sur sa propre ligne (std::cout).
 
-    std::cerr << "TODO: chiikaml_cli pas encore implemente\n";
-    return 1;
+    Matrix train_data = Matrix::from_csv(train_path);
+    Matrix X_train(train_data.rows(), train_data.cols() - 1);
+    std::vector<int> y_train(train_data.rows());
+
+    Matrix test_data = Matrix::from_csv(test_path);
+    Matrix X_test(test_data.rows(), test_data.cols());
+
+    for (std::size_t i = 0; i<train_data.rows(); ++i) {
+        for (std::size_t j= 0; j<train_data.cols() - 1; ++j) {
+            X_train(i, j) = train_data(i,j);
+        }
+        y_train[i] = static_cast<int>(train_data(i, train_data.cols() - 1));
+    }
+
+    for (std::size_t i = 0; i<test_data.rows(); ++i) {
+        for (std::size_t j= 0; j<test_data.cols(); ++j) {
+            X_test(i, j) = test_data(i,j);
+        }
+    }
+
+    KNNClassifier knn(k);
+    knn.fit(X_train, y_train);
+    std::vector<int> predictions = knn.predict(X_test);
+    for (const auto& pred : predictions) {
+        std::cout << pred << "\n";
+    }
+
+    return 0;
 }
