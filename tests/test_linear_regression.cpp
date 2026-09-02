@@ -10,7 +10,7 @@
 using chiikaml::LinearRegression;
 using chiikaml::Matrix;
 
-TEST_CASE("LinearRegression learns coefficients and intercept",
+TEST_CASE("LinearRegression learns the correct coefficients and intercept",
           "[linear_regression]") {
     Matrix X(5, 2);
 

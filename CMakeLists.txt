@@ -19,6 +19,7 @@ add_library(chiikaml
     src/decision_tree.cpp
     src/random_forest.cpp
     src/linear_regression.cpp
+    src/ridge_regression.cpp
 )
 
 target_include_directories(chiikaml PUBLIC
