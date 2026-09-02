@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <cmath>
 
 namespace chiikaml {
 
@@ -647,5 +648,4 @@ Matrix Matrix::solve_cholesky(const Matrix& b) const {
 
     return solution;
 }
-}
-// namespace chiikaml
+} // namespace chiikaml
