@@ -1,5 +1,7 @@
 #include "chiikaml/decision_tree.hpp"
 
+#include <algorithm>
+#include <numeric>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -36,6 +38,22 @@ double DecisionTreeClassifier::gini(const std::vector<int>& y) {
         gini -= p_c * p_c;
     }
     return gini;
+}
+
+// Meme formule que gini(), mais sans jamais parcourir y : les
+// comptes sont deja donnes (maintenus par find_best_split() au fur
+// et a mesure). O(nombre de classes distinctes), pas O(n).
+double DecisionTreeClassifier::gini_from_counts(const std::unordered_map<int, std::size_t>& counts,
+                                                 std::size_t total) {
+    if (total == 0) {
+        return 0.0;
+    }
+    double g = 1.0;
+    for (const auto& [label, count] : counts) {
+        double p = static_cast<double>(count) / static_cast<double>(total);
+        g -= p * p;
+    }
+    return g;
 }
 
 // TODO(toi): identique au vote majoritaire de KNNClassifier::predict_one
@@ -88,27 +106,60 @@ bool DecisionTreeClassifier::find_best_split(const Matrix& X, const std::vector<
                                               std::size_t& best_feature, double& best_threshold) {
     double best_score = 1.0; // pire score possible
     bool found = false;
+    const std::size_t n = y.size();
 
-    for (std:: size_t f=0; f< X.cols(); ++f){
-        for (std::size_t i=0; i<X.rows(); ++i){
-            double threshold = X(i,f);
-            std::vector<int> y_left;
-            std::vector<int> y_right;
-            for (std::size_t j = 0; j < y.size(); ++j) {
-                if (X(j, f) <= threshold) {
-                    y_left.push_back(y[j]);
-                } else {
-                    y_right.push_back(y[j]);
-                }
+    for (std::size_t f = 0; f < X.cols(); ++f) {
+        // Indices des points, tries par valeur croissante sur cette
+        // feature -- std::iota remplit order = {0, 1, ..., n-1},
+        // std::sort les reordonne ensuite selon X(idx, f).
+        std::vector<std::size_t> order(n);
+        std::iota(order.begin(), order.end(), 0);
+        std::sort(order.begin(), order.end(),
+                  [&X, f](std::size_t a, std::size_t b) { return X(a, f) < X(b, f); });
+
+        // Etat initial du balayage : tout le monde est "a droite",
+        // rien "a gauche".
+        std::unordered_map<int, std::size_t> left_counts;
+        std::unordered_map<int, std::size_t> right_counts;
+        for (std::size_t idx : order) {
+            right_counts[y[idx]]++;
+        }
+        std::size_t left_size = 0;
+        std::size_t right_size = n;
+
+        // Deplace les points un par un de droite vers gauche, dans
+        // l'ordre trie -- a chaque etape, "gauche" = tous les points
+        // dont la valeur est <= celle du point qu'on vient de
+        // deplacer.
+        for (std::size_t pos = 0; pos + 1 < n; ++pos) {
+            std::size_t idx = order[pos];
+            int label = y[idx];
+
+            left_counts[label]++;
+            --right_counts[label];
+            if (right_counts[label] == 0) {
+                right_counts.erase(label);
             }
-            if (y_left.empty() || y_right.empty()) {
-                continue; // ce seuil ne separe rien
+            ++left_size;
+            --right_size;
+
+            double current_value = X(idx, f);
+            double next_value = X(order[pos + 1], f);
+            if (current_value == next_value) {
+                // Un autre point partage la meme valeur : ne pas
+                // couper "au milieu" de valeurs egales, attendre de
+                // les avoir toutes deplacees a gauche.
+                continue;
             }
-            double score = (y_left.size() * gini(y_left) + y_right.size() * gini(y_right)) / y.size();
+
+            double score = (static_cast<double>(left_size) * gini_from_counts(left_counts, left_size) +
+                             static_cast<double>(right_size) * gini_from_counts(right_counts, right_size)) /
+                            static_cast<double>(n);
+
             if (score < best_score) {
                 best_score = score;
                 best_feature = f;
-                best_threshold = threshold;
+                best_threshold = current_value;
                 found = true;
             }
         }
