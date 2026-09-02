@@ -46,6 +46,39 @@ TEST_CASE("L'addition de deux matrices se fait element par element", "[matrix]")
     REQUIRE(c(1, 1) == 44);
 }
 
+TEST_CASE("Le produit matriciel refuse les dimensions incompatibles",
+          "[matrix]") {
+    Matrix a(2, 3);
+    Matrix b(2, 4);
+
+    REQUIRE_THROWS_AS(a * b, std::invalid_argument);
+}
+
+TEST_CASE("Le produit matriciel est correctement calcule", "[matrix]") {
+    Matrix a(2, 2);
+    Matrix b(2, 2);
+
+    a(0, 0) = 1;
+    a(0, 1) = 2;
+    a(1, 0) = 3;
+    a(1, 1) = 4;
+
+    b(0, 0) = 5;
+    b(0, 1) = 6;
+    b(1, 0) = 7;
+    b(1, 1) = 8;
+
+    Matrix c = a * b;
+
+    REQUIRE(c.rows() == 2);
+    REQUIRE(c.cols() == 2);
+
+    REQUIRE(c(0, 0) == 19); // 1*5 + 2*7
+    REQUIRE(c(0, 1) == 22); // 1*6 + 2*8
+    REQUIRE(c(1, 0) == 43); // 3*5 + 4*7
+    REQUIRE(c(1, 1) == 50); // 3*6 + 4*8
+}
+
 TEST_CASE("resize agrandit et remplit les nouvelles cases a zero, en gardant les anciennes valeurs", "[matrix]") {
     Matrix m(2, 2);
     m(0, 0) = 1; m(0, 1) = 2;

@@ -42,6 +42,10 @@ public:
     // les mêmes dimensions.
     Matrix operator+(const Matrix& other) const;
 
+    // Produit matriciel. Le nombre de colonnes de la matrice de gauche
+    // doit être égal au nombre de lignes de la matrice de droite.
+    Matrix operator*(const Matrix& other) const;
+
     // Change les dimensions vers rows x cols. Les valeurs existantes
     // dans la zone commune aux anciennes et nouvelles dimensions
     // (min(rows(), rows) x min(cols(), cols)) sont préservées, à la

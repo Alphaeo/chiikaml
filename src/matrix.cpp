@@ -35,6 +35,27 @@ Matrix Matrix::operator+(const Matrix& other) const {
     return result;
 }
 
+Matrix Matrix::operator*(const Matrix& other) const {
+    if (cols_ != other.rows_) {
+        throw std::invalid_argument(
+            "Le nombre de colonnes de la premiere matrice "
+            "doit etre egal au nombre de lignes de la seconde"
+        );
+    }
+
+    Matrix result(rows_, other.cols_); // create a result matrix with the correct dimensions
+
+    for (std::size_t i = 0; i < rows_; ++i) {
+        for (std::size_t j = 0; j < other.cols_; ++j) {
+            for (std::size_t k = 0; k < cols_; ++k) {
+                result(i, j) += (*this)(i, k) * other(k, j);
+            }
+        }
+    }
+
+    return result;
+}
+
 // TODO(toi), etape par etape :
 // - garde rows_ et cols_ actuels quelque part (ou lis-les avant de
 //   les ecraser) -- ce sont l' "ancien pas" pour lire data_
