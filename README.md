@@ -136,7 +136,7 @@ reste a construire, vise plutot avec une compilation WASM de
 - [x] Phase 5 - Arbre de decision (CART, gini/entropie)
 - [x] Phase 6 - Random Forest (bagging + multithreading)
 - [x] Phase 7 - Optimisation : benchmarks, profiling, SIMD, cache
-- [ ] Phase 8 - Polish : CLI, benchmarks vs sklearn, CI
+- [x] Phase 8 - Polish : CLI, benchmarks vs sklearn, CI
 
 ### Partie 2 - Moteur d'inference/entrainement CPU-only
 

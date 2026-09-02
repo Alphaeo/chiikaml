@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "chiikaml/matrix.hpp"
@@ -87,15 +88,31 @@ private:
     // etat de l'arbre -- static, comme KMeans::squared_distance.
     static double gini(const std::vector<int>& y);
 
+    // Meme formule que gini(), mais a partir de comptes de classes
+    // DEJA calcules (pas d'un vector<int> a rescanner). Utilisee par
+    // find_best_split(), qui maintient ces comptes au fur et a mesure
+    // au lieu de les recalculer a chaque candidat -- voir son
+    // commentaire pour le detail.
+    static double gini_from_counts(const std::unordered_map<int, std::size_t>& counts, std::size_t total);
+
     // La classe la plus frequente dans y (utilisee pour la
     // prediction d'une feuille).
     static int majority_class(const std::vector<int>& y);
 
-    // Cherche, parmi toutes les features de X et plusieurs seuils
-    // candidats par feature, le split qui minimise l'impurete
-    // ponderee des deux groupes resultants. Ecrit le resultat dans
+    // Cherche, parmi toutes les features de X et tous les seuils
+    // candidats, le split qui minimise l'impurete ponderee des deux
+    // groupes resultants. Ecrit le resultat dans
     // best_feature/best_threshold ; renvoie false si aucun split
     // valide n'a ete trouve (ex: toutes les valeurs identiques).
+    //
+    // Version triee : O(n log n) par feature plutot que O(n^2). Pour
+    // chaque feature, trie les points par valeur croissante, puis
+    // balaie cet ordre de gauche a droite en deplacant un point a la
+    // fois du groupe "droite" vers le groupe "gauche", en mettant a
+    // jour des comptes de classes de proche en proche (O(1) par
+    // point deplace) plutot que de tout recompter a chaque seuil
+    // candidat (ce que faisait la version precedente, O(n) par
+    // candidat).
     static bool find_best_split(const Matrix& X, const std::vector<int>& y, std::size_t& best_feature,
                                  double& best_threshold);
 
