@@ -120,4 +120,34 @@ Tensor Tensor::transpose() const {
     return Tensor(reversed_shape, reversed_strides, data_);
 }
 
+// TODO(toi), etape par etape :
+//
+// - calcule le nombre total d'elements de new_shape (meme technique
+//   que dans le constructeur : std::accumulate avec
+//   std::multiplies<std::size_t>())
+//
+// - si ce total est different de size(), throw std::invalid_argument
+//
+// - calcule les nouveaux strides pour new_shape -- EXACTEMENT le
+//   meme algorithme que dans le constructeur (dernier stride = 1,
+//   puis en repartant de la fin : strides[k] = strides[k+1] * shape[k+1]).
+//   Tu peux copier-coller/adapter la boucle que tu as deja ecrite
+//   dans le constructeur, juste sur new_shape au lieu de shape_.
+//
+// - renvoie Tensor(new_shape, new_strides, data_) -- le meme
+//   constructeur prive que transpose() utilise, `data_` partage tel
+//   quel, aucune copie.
+Tensor Tensor::reshape(std::vector<std::size_t> new_shape) const {
+    std::size_t new_total_size = std::accumulate(new_shape.begin(), new_shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
+    if (new_total_size != size()) {
+        throw std::invalid_argument("New shape must have the same total size as the original tensor");
+    }
+    std::vector<std::size_t> new_strides(new_shape.size());
+    new_strides[new_shape.size() - 1] = 1;
+    for (std::size_t k = new_shape.size() - 1; k > 0; --k) {
+        new_strides[k - 1] = new_strides[k] * new_shape[k];
+    }
+    return Tensor(new_shape, new_strides, data_);
+}
+
 } // namespace chiikaml

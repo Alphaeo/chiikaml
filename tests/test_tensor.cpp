@@ -93,3 +93,48 @@ TEST_CASE("transpose() est une VUE : ecrire dedans modifie l'original", "[tensor
     // (indices echanges : transposed(1,0) correspond a t(0,1)).
     REQUIRE(t({0, 1}) == 99.0);
 }
+
+TEST_CASE("reshape() garde le meme nombre d'elements et change la forme", "[tensor]") {
+    Tensor t({2, 6});
+
+    Tensor reshaped = t.reshape({3, 4});
+
+    REQUIRE(reshaped.shape() == std::vector<std::size_t>{3, 4});
+    REQUIRE(reshaped.size() == t.size());
+}
+
+TEST_CASE("reshape() leve une exception si le nombre total d'elements ne correspond pas", "[tensor]") {
+    Tensor t({2, 3}); // 6 elements
+
+    REQUIRE_THROWS_AS(t.reshape({2, 2}), std::invalid_argument); // 4 elements
+}
+
+TEST_CASE("reshape() preserve l'ordre des valeurs (parcours a plat identique)", "[tensor]") {
+    // 2x3, rempli 0..5 dans l'ordre du parcours -- (i,j) -> i*3 + j
+    Tensor t({2, 3});
+    for (std::size_t i = 0; i < 2; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            t({i, j}) = static_cast<double>(i * 3 + j);
+        }
+    }
+
+    Tensor reshaped = t.reshape({3, 2});
+
+    // Meme parcours a plat (0,1,2,3,4,5), juste regroupe en 3x2 au
+    // lieu de 2x3.
+    REQUIRE(reshaped({0, 0}) == 0);
+    REQUIRE(reshaped({0, 1}) == 1);
+    REQUIRE(reshaped({1, 0}) == 2);
+    REQUIRE(reshaped({1, 1}) == 3);
+    REQUIRE(reshaped({2, 0}) == 4);
+    REQUIRE(reshaped({2, 1}) == 5);
+}
+
+TEST_CASE("reshape() est une VUE : ecrire dedans modifie l'original", "[tensor]") {
+    Tensor t({2, 3});
+    Tensor reshaped = t.reshape({3, 2});
+
+    reshaped({2, 1}) = 77.0; // position plate 5 -> t(1, 2)
+
+    REQUIRE(t({1, 2}) == 77.0);
+}

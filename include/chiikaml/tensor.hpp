@@ -80,6 +80,21 @@ public:
     // d'une vue, pas un bug.
     Tensor transpose() const;
 
+    // Renvoie une VUE de ce tenseur avec une nouvelle forme, tant que
+    // le nombre total d'elements reste identique (ex : {2, 6} ->
+    // {3, 4}, ou {12} -- les memes 12 nombres, juste regroupes
+    // differemment). Comme transpose(), AUCUNE donnee n'est copiee.
+    // Leve std::invalid_argument si le nombre total d'elements de
+    // new_shape ne correspond pas a size().
+    //
+    // Limitation assumee de cette version : suppose que ce Tensor est
+    // deja CONTIGU en memoire. C'est le cas de tout Tensor construit
+    // normalement (via le constructeur public), mais PAS forcement le
+    // cas d'une vue deja transposee -- appeler reshape() sur le
+    // resultat de transpose() n'est pas garanti correct dans cette
+    // v1 (a revisiter plus tard si besoin).
+    Tensor reshape(std::vector<std::size_t> new_shape) const;
+
 private:
     std::vector<std::size_t> shape_;
     std::vector<std::size_t> strides_;
