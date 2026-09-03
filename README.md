@@ -157,7 +157,24 @@ utilisables en pratique. Pas de dependance GPU/CUDA obligatoire.
       de learning rate basique
 - [ ] Phase 13 - Bloc Attention + Transformer : attention multi-tete,
       RoPE, GQA/MQA, Sliding Window Attention, bloc Transformer
-      complet (attention + FFN + norm + residuelles), KV-cache
+      complet (attention + FFN + norm + residuelles), KV-cache.
+      Inspiration notee le 2026-09-03 pour la gestion du KV-cache :
+      [kvcached](https://github.com/ovg-project/kvcached) (cache KV
+      elastique pour partage GPU, via memoire virtuelle) - le
+      mecanisme bas niveau (memoire virtuelle CUDA) ne s'applique pas
+      a un moteur CPU-only (l'OS donne deja cette abstraction
+      gratuitement via mmap), mais les IDEES sont transposables :
+      cache KV qui grandit a la demande plutot que pre-alloue pour la
+      longueur de contexte max, et prefix caching (reutiliser les
+      entrees KV partagees entre requetes). Pas une invention de
+      notre part (concept issu de PagedAttention/vLLM, 2023,
+      aujourd'hui standard cote GPU) mais encore non resolu cote CPU
+      meme dans le projet de reference du domaine : llama.cpp a un
+      prototype de KV-cache pagine encore en design actif (discussion
+      [ggml-org/llama.cpp#21961](https://github.com/ggml-org/llama.cpp/discussions/21961),
+      croissance dynamique et copy-on-write pour le prefix caching
+      encore listes "prevu", pas livres) - un vrai sujet d'actualite
+      pour cette phase, pas un exercice deja resolu ailleurs.
 - [ ] Phase 14 - Quantization : int8 et int4 post-training,
       quantization-aware training (QAT), quantization ternaire
       façon BitNet (~1.58 bit/poids), kernels CPU specialises

@@ -63,11 +63,11 @@ std::size_t Tensor::flat_index(const std::vector<std::size_t>& indices) const {
 // (*data_) donne acces au vector qu'il possede, comme dereferencer
 // un pointeur classique).
 double& Tensor::operator()(const std::vector<std::size_t>& indices) {
-    throw std::logic_error("Tensor::operator() pas encore implemente");
+    return (*data_)[flat_index(indices)];
 }
 
 double Tensor::operator()(const std::vector<std::size_t>& indices) const {
-    throw std::logic_error("Tensor::operator() const pas encore implemente");
+    return (*data_)[flat_index(indices)];
 }
 
 // TODO(toi):
@@ -85,7 +85,14 @@ double Tensor::operator()(const std::vector<std::size_t>& indices) const {
 //   acces aux membres prives d'un autre Tensor (result, other) --
 //   meme regle que ce qu'on avait vu pour Matrix::operator+.
 Tensor Tensor::operator+(const Tensor& other) const {
-    throw std::logic_error("Tensor::operator+ pas encore implemente");
+    if (shape_ != other.shape_) {
+        throw std::invalid_argument("Tensors must have the same shape");
+    }
+    Tensor result(shape_);
+    for (std::size_t i = 0; i< size(); ++i){
+        (*result.data_)[i] = (*data_)[i] + (*other.data_)[i];
+    }
+    return result;
 }
 
 } // namespace chiikaml
