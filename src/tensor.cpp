@@ -150,4 +150,62 @@ Tensor Tensor::reshape(std::vector<std::size_t> new_shape) const {
     return Tensor(new_shape, new_strides, data_);
 }
 
+// TODO(toi), etape par etape -- la plus dense du module, prends ton
+// temps. Exemple travaille pour t'orienter : ce Tensor a shape_ =
+// {3} (donc strides_ = {1}), target_shape = {2, 3} (ajouter le meme
+// vecteur de 3 nombres a chaque ligne d'une matrice 2x3).
+//
+// - this_ndim = ndim() (ici 1), target_ndim = target_shape.size()
+//   (ici 2). Si this_ndim > target_ndim, throw std::invalid_argument
+//   (on ne peut pas "retrecir" le nombre de dimensions avec
+//   broadcast_to).
+//
+// - offset = target_ndim - this_ndim (ici 2 - 1 = 1) : le nombre de
+//   dimensions implicites de taille 1 ajoutees au debut.
+//
+// - construis new_strides, un vector<size_t> de taille target_ndim.
+//   Pour chaque k de 0 a target_ndim - 1 :
+//     - si k < offset (ici, seulement k=0) : dimension implicite,
+//       new_strides[k] = 0 (rien a comparer, elle "vaut" 1 par
+//       convention et s'etire toujours)
+//     - sinon : orig_dim = k - offset (ici pour k=1, orig_dim = 0).
+//       Compare shape_[orig_dim] (ici shape_[0] = 3) a
+//       target_shape[k] (ici target_shape[1] = 3) :
+//         - si egales : new_strides[k] = strides_[orig_dim] (pas
+//           d'etirement, comportement normal -- ici
+//           new_strides[1] = strides_[0] = 1)
+//         - si shape_[orig_dim] == 1 (mais pas egal a
+//           target_shape[k]) : new_strides[k] = 0 (etirement)
+//         - sinon : incompatible, throw std::invalid_argument
+//
+//   Resultat attendu sur l'exemple : new_strides = {0, 1}. Verifie
+//   avec flat_index : {0,j} -> 0*0 + j*1 = j, et {1,j} -> 1*0 + j*1 = j
+//   -- les deux "lignes" lisent bien les 3 memes valeurs.
+//
+// - renvoie Tensor(target_shape, new_strides, data_)
+Tensor Tensor::broadcast_to(std::vector<std::size_t> target_shape) const {
+    std::size_t this_ndim = ndim();
+    std::size_t target_ndim = target_shape.size();
+    if (this_ndim > target_ndim) {
+        throw std::invalid_argument("Cannot broadcast to a shape with fewer dimensions");
+    }
+    std::size_t offset = target_ndim - this_ndim;
+    std::vector<std::size_t> new_strides(target_ndim);
+    for (std::size_t k = 0; k < target_ndim; ++k) {
+        if (k < offset) {
+            new_strides[k] = 0;
+        } else {
+            std::size_t orig_dim = k - offset;
+            if (shape_[orig_dim] == target_shape[k]) {
+                new_strides[k] = strides_[orig_dim];
+            } else if (shape_[orig_dim] == 1) {
+                new_strides[k] = 0;
+            } else {
+                throw std::invalid_argument("Incompatible shapes for broadcasting");
+            }
+        }
+    }
+    return Tensor(target_shape, new_strides, data_);
+}
+
 } // namespace chiikaml

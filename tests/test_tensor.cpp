@@ -138,3 +138,44 @@ TEST_CASE("reshape() est une VUE : ecrire dedans modifie l'original", "[tensor]"
 
     REQUIRE(t({1, 2}) == 77.0);
 }
+
+TEST_CASE("broadcast_to ajoute des dimensions implicites a gauche", "[tensor]") {
+    // Vecteur de 3 valeurs distinctes, etire vers {2, 3} : les deux
+    // "lignes" doivent lire les 3 memes valeurs.
+    Tensor v({3});
+    v({0}) = 10; v({1}) = 20; v({2}) = 30;
+
+    Tensor broadcasted = v.broadcast_to({2, 3});
+
+    REQUIRE(broadcasted.shape() == std::vector<std::size_t>{2, 3});
+    for (std::size_t j = 0; j < 3; ++j) {
+        REQUIRE(broadcasted({0, j}) == v({j}));
+        REQUIRE(broadcasted({1, j}) == v({j}));
+    }
+}
+
+TEST_CASE("broadcast_to etire une dimension de taille 1", "[tensor]") {
+    Tensor t({1, 3});
+    t({0, 0}) = 1; t({0, 1}) = 2; t({0, 2}) = 3;
+
+    Tensor broadcasted = t.broadcast_to({4, 3});
+
+    REQUIRE(broadcasted.shape() == std::vector<std::size_t>{4, 3});
+    for (std::size_t i = 0; i < 4; ++i) {
+        REQUIRE(broadcasted({i, 0}) == 1);
+        REQUIRE(broadcasted({i, 1}) == 2);
+        REQUIRE(broadcasted({i, 2}) == 3);
+    }
+}
+
+TEST_CASE("broadcast_to leve une exception si les dimensions sont incompatibles", "[tensor]") {
+    Tensor t({2}); // ni egal a 3, ni egal a 1
+
+    REQUIRE_THROWS_AS(t.broadcast_to({4, 3}), std::invalid_argument);
+}
+
+TEST_CASE("broadcast_to leve une exception si target_shape a moins de dimensions", "[tensor]") {
+    Tensor t({2, 3});
+
+    REQUIRE_THROWS_AS(t.broadcast_to({3}), std::invalid_argument);
+}

@@ -95,6 +95,31 @@ public:
     // v1 (a revisiter plus tard si besoin).
     Tensor reshape(std::vector<std::size_t> new_shape) const;
 
+    // Renvoie une VUE de ce tenseur "etiree" vers target_shape, selon
+    // les regles de broadcasting classiques (NumPy) : les formes sont
+    // comparees en partant de la DROITE. Chaque dimension doit etre
+    // soit egale a la dimension cible, soit valoir 1 dans CE tenseur
+    // (auquel cas elle est "etiree" pour correspondre). Si ce tenseur
+    // a moins de dimensions que target_shape, des dimensions
+    // implicites de taille 1 sont ajoutees au DEBUT.
+    //
+    // AUCUNE donnee n'est copiee ni dupliquee : une dimension etiree
+    // recoit un STRIDE DE 0 -- avancer sur cette dimension ne bouge
+    // jamais dans le buffer, donc n'importe quel indice sur cette
+    // dimension lit la MEME case memoire sous-jacente.
+    //
+    // ATTENTION : consequence de ce stride 0 -- ECRIRE dans une vue
+    // broadcastee via un indice non nul sur une dimension etiree
+    // modifierait la MEME case que l'indice 0 sur cette dimension
+    // (elles pointent vers le meme endroit). Cette vue est pensee
+    // pour la LECTURE (les futures operations comme + qui
+    // l'utiliseront en interne), pas pour l'ecriture directe.
+    //
+    // Leve std::invalid_argument si target_shape a moins de
+    // dimensions que ce tenseur, ou si une dimension n'est ni egale
+    // ni egale a 1 (aucune regle de broadcasting ne s'applique).
+    Tensor broadcast_to(std::vector<std::size_t> target_shape) const;
+
 private:
     std::vector<std::size_t> shape_;
     std::vector<std::size_t> strides_;
