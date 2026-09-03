@@ -18,6 +18,7 @@ add_executable(chiikaml_tests
     test_ridge_regression.cpp
     test_lasso_regression.cpp
     test_tensor.cpp
+    test_metrics.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE

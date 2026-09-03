@@ -22,6 +22,7 @@ add_library(chiikaml
     src/ridge_regression.cpp
     src/lasso_regression.cpp
     src/tensor.cpp
+    src/metrics.cpp
 )
 
 target_include_directories(chiikaml PUBLIC
