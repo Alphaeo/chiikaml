@@ -95,4 +95,29 @@ Tensor Tensor::operator+(const Tensor& other) const {
     return result;
 }
 
+// TODO(toi), etape par etape :
+//
+// - construis un vector<size_t> reversed_shape qui contient les
+//   elements de shape_ dans l'ordre INVERSE. Le plus simple :
+//   std::vector<std::size_t> reversed_shape(shape_.rbegin(), shape_.rend());
+//   -- rbegin()/rend() sont des iterateurs "inverses" : parcourir de
+//   rbegin() a rend() revient a parcourir le vector du dernier au
+//   premier element. Construire un nouveau vector directement a
+//   partir de ces iterateurs le remplit deja dans le bon ordre, pas
+//   besoin de boucle a la main.
+//
+// - fais pareil pour strides_ -> reversed_strides
+//
+// - renvoie Tensor(reversed_shape, reversed_strides, data_) -- ca
+//   appelle le constructeur PRIVE (celui a 3 arguments, deja ecrit
+//   dans le header) qui ne fait AUCUNE allocation, juste une init de
+//   membres. `data_` est passe tel quel (pas *data_, pas de copie du
+//   contenu) : c'est un shared_ptr, le copier fait juste partager le
+//   meme buffer sous-jacent avec le nouveau Tensor renvoye.
+Tensor Tensor::transpose() const {
+    std::vector<std::size_t> reversed_shape(shape_.rbegin(), shape_.rend());
+    std::vector<std::size_t> reversed_strides(strides_.rbegin(), strides_.rend());
+    return Tensor(reversed_shape, reversed_strides, data_);
+}
+
 } // namespace chiikaml

@@ -68,10 +68,32 @@ public:
     // premiere version -- viendra plus tard dans la Phase 9).
     Tensor operator+(const Tensor& other) const;
 
+    // Renvoie une VUE transposee de ce tenseur : shape_ et strides_
+    // inverses (pour un tenseur 2D, c'est la transposition classique
+    // -- lignes et colonnes echangees ; pour un tenseur a N
+    // dimensions, c'est l'ordre des dimensions entierement inverse).
+    //
+    // AUCUNE donnee n'est copiee : la vue renvoyee partage exactement
+    // le meme buffer data_ que l'original (c'est precisement pour ca
+    // que data_ est un shared_ptr). Ecrire dans la vue transposee
+    // modifie donc AUSSI l'original -- c'est le comportement attendu
+    // d'une vue, pas un bug.
+    Tensor transpose() const;
+
 private:
     std::vector<std::size_t> shape_;
     std::vector<std::size_t> strides_;
     std::shared_ptr<std::vector<double>> data_;
+
+    // Constructeur "prive" pour construire une VUE : pas de nouvelle
+    // allocation, juste un nouveau shape_/strides_ par-dessus un
+    // data_ DEJA existant (partage, pas copie -- copier un shared_ptr
+    // est "cheap" : ca incremente juste un compteur de references).
+    // Utilise par transpose() (et plus tard reshape()). Trivial
+    // (juste une init de membres), donc deja ecrit ici.
+    Tensor(std::vector<std::size_t> shape, std::vector<std::size_t> strides,
+           std::shared_ptr<std::vector<double>> data)
+        : shape_(std::move(shape)), strides_(std::move(strides)), data_(std::move(data)) {}
 
     // Traduit des indices multi-dimensionnels en un seul indice dans
     // le buffer plat data_, via un produit scalaire indices . strides_.

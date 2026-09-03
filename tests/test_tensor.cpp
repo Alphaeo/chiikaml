@@ -55,3 +55,41 @@ TEST_CASE("L'addition leve une exception si les formes ne correspondent pas", "[
 
     REQUIRE_THROWS_AS(a + b, std::invalid_argument);
 }
+
+TEST_CASE("transpose() inverse la forme", "[tensor]") {
+    Tensor t({2, 3});
+
+    Tensor transposed = t.transpose();
+
+    REQUIRE(transposed.shape() == std::vector<std::size_t>{3, 2});
+}
+
+TEST_CASE("transpose() donne acces aux memes valeurs, indices echanges", "[tensor]") {
+    // 2x3, chaque case a une valeur distincte : (i, j) -> i*10 + j
+    Tensor t({2, 3});
+    for (std::size_t i = 0; i < 2; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            t({i, j}) = static_cast<double>(i * 10 + j);
+        }
+    }
+
+    Tensor transposed = t.transpose();
+
+    for (std::size_t i = 0; i < 2; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            REQUIRE(transposed({j, i}) == t({i, j}));
+        }
+    }
+}
+
+TEST_CASE("transpose() est une VUE : ecrire dedans modifie l'original", "[tensor]") {
+    Tensor t({2, 3});
+    Tensor transposed = t.transpose();
+
+    // Ecrit dans la vue transposee...
+    transposed({1, 0}) = 99.0;
+
+    // ...et l'original doit refleter le changement, au bon endroit
+    // (indices echanges : transposed(1,0) correspond a t(0,1)).
+    REQUIRE(t({0, 1}) == 99.0);
+}
