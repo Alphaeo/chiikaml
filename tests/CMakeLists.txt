@@ -14,6 +14,8 @@ add_executable(chiikaml_tests
     test_kmeans.cpp
     test_decision_tree.cpp
     test_random_forest.cpp
+    test_linear_regression.cpp
+    test_ridge_regression.cpp
     test_tensor.cpp
 )
 

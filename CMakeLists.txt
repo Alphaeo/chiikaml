@@ -18,6 +18,8 @@ add_library(chiikaml
     src/kmeans.cpp
     src/decision_tree.cpp
     src/random_forest.cpp
+    src/linear_regression.cpp
+    src/ridge_regression.cpp
     src/tensor.cpp
 )
 

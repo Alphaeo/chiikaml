@@ -42,6 +42,24 @@ public:
     // les mêmes dimensions.
     Matrix operator+(const Matrix& other) const;
 
+    // Produit matriciel. Le nombre de colonnes de la matrice de gauche
+    // doit être égal au nombre de lignes de la matrice de droite.
+    Matrix operator*(const Matrix& other) const;
+
+    // Element-wise subtraction. Both matrices must have the same dimensions.
+    Matrix operator-(const Matrix& other) const;
+
+    // Scalar multiplication and division.
+    Matrix operator*(double scalar) const;
+    Matrix operator/(double scalar) const;
+
+    // In-place element-wise addition and subtraction.
+    Matrix& operator+=(const Matrix& other);
+    Matrix& operator-=(const Matrix& other);
+
+    // In-place scalar multiplication.
+    Matrix& operator*=(double scalar);
+
     // Change les dimensions vers rows x cols. Les valeurs existantes
     // dans la zone commune aux anciennes et nouvelles dimensions
     // (min(rows(), rows) x min(cols(), cols)) sont préservées, à la
@@ -71,6 +89,34 @@ public:
     // Matrix::from_csv("data.csv"), pas m.from_csv(...).
     static Matrix from_csv(const std::string& path);
 
+    // Calcule le determinant de la matrice. Leve std::invalid_argument si la matrice n'est pas carree.
+    // Calcule le determinant par decomposition LU avec pivot partiel.
+    // La matrice doit etre carree.
+    double det() const;
+
+    // Calcule l'inverse de la matrice via la décomposition LU. Leve std::invalid_argument si la matrice n'est pas carree.
+    // Leve std::runtime_error si la matrice a un determinant nul.
+    // Ne nécessite pas de calculer le determinant avant.
+    Matrix inv() const;
+
+    // Calcule la transposée de la matrice.
+    Matrix transpose() const;
+
+    // Resout le systeme lineaire Ax = b, ou A est la matrice courante.
+    // Leve std::invalid_argument si la matrice n'est pas carree ou si le nombre de lignes de b ne correspond pas.
+    // Préferable à Matrix x = a.inv() * b; car évite de calculer toute l’inverse donc plus efficace.
+    Matrix solve(const Matrix& b) const;
+
+    // Resout le systeme lineaire Ax = b, ou A est la matrice courante, en utilisant la decomposition de Cholesky.
+    // Leve std::invalid_argument si la matrice n'est pas carree ou si le nombre de lignes de b ne correspond pas.
+    // Leve std::runtime_error si A n'est pas definie positive.
+    // Préferable quand A est symetrique definie positive, car plus efficace que la decomposition LU.
+    // A utiliser pour les problemes de regression lineaire, ou A = X^T * X.
+
+    Matrix solve_cholesky(const Matrix& b) const;
+
+
+
 private:
     std::size_t rows_;
     std::size_t cols_;
@@ -79,4 +125,6 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const Matrix& m);
 
+// Scalar multiplication from the left: scalar * matrix.
+Matrix operator*(double scalar, const Matrix& matrix);
 } // namespace chiikaml

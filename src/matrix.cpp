@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <cmath>
 
 namespace chiikaml {
 
@@ -32,6 +33,29 @@ Matrix Matrix::operator+(const Matrix& other) const {
             result(i, j) = (*this)(i, j) + other(i, j);
         }
     }
+    return result;
+}
+
+Matrix Matrix::operator*(const Matrix& other) const {
+    if (cols_ != other.rows_) {
+        throw std::invalid_argument(
+            "Le nombre de colonnes de la premiere matrice "
+            "doit etre egal au nombre de lignes de la seconde"
+        );
+    }
+
+    Matrix result(rows_, other.cols_); // create a result matrix with the correct dimensions
+
+    for (std::size_t i = 0; i < rows_; ++i) {
+        for (std::size_t k = 0; k < cols_; ++k) {
+            const double a_ik = (*this)(i, k);
+
+            for (std::size_t j = 0; j < other.cols_; ++j) {
+                result(i, j) += a_ik * other(k, j);
+            }
+        }
+    }
+
     return result;
 }
 
@@ -149,4 +173,479 @@ std::ostream& operator<<(std::ostream& os, const Matrix& m) {
     return os;
 }
 
+Matrix Matrix::operator-(const Matrix& other) const {
+    if (rows_ != other.rows_ || cols_ != other.cols_) {
+        throw std::invalid_argument(
+            "Matrices must have the same dimensions"
+        );
+    }
+
+    return *this + (other * -1.0);
+}
+
+Matrix Matrix::operator*(double scalar) const {
+    Matrix result(rows_, cols_);
+
+    for (std::size_t i = 0; i < data_.size(); ++i) {
+        result.data_[i] = data_[i] * scalar;
+    }
+
+    return result;
+}
+
+Matrix Matrix::operator/(double scalar) const {
+    if (scalar == 0.0) {
+        throw std::invalid_argument("Division by zero");
+    }
+
+    Matrix result(rows_, cols_);
+
+    // Computing the reciprocal once avoids performing one division
+    // for every matrix coefficient.
+    const double reciprocal = 1.0 / scalar;
+
+    for (std::size_t i = 0; i < data_.size(); ++i) {
+        result.data_[i] = data_[i] * reciprocal;
+    }
+
+    return result;
+}
+
+Matrix& Matrix::operator+=(const Matrix& other) {
+    if (rows_ != other.rows_ || cols_ != other.cols_) {
+        throw std::invalid_argument(
+            "Matrices must have the same dimensions"
+        );
+    }
+
+    return *this = *this + other;
+}
+
+
+Matrix& Matrix::operator-=(const Matrix& other) {
+    if (rows_ != other.rows_ || cols_ != other.cols_) {
+        throw std::invalid_argument(
+            "Matrices must have the same dimensions"
+        );
+    }
+
+    return *this = *this - other;
+}
+
+Matrix& Matrix::operator*=(double scalar) {
+    for (double& value : data_) {
+        value *= scalar;
+    }
+
+    return *this;
+}
+
+// Scalar multiplication from the left: scalar * matrix.
+Matrix operator*(double scalar, const Matrix& matrix) {
+    return matrix * scalar;
+}
+
+// Computes the determinant of a square matrix.
+// Throws std::invalid_argument if the matrix is not square.
+double Matrix::det() const {
+    if (rows_ != cols_) {
+        throw std::invalid_argument("The matrix must be square");
+    }
+
+    const std::size_t n = rows_;
+
+    // By convention, the determinant of a 0x0 matrix is 1.
+    if (n == 0) {
+        return 1.0;
+    }
+
+    // Create a copy because Gaussian elimination modifies the coefficients.
+    std::vector<double> lu = data_;
+    int sign = 1;
+
+    for (std::size_t k = 0; k < n; ++k) {
+        // Find the largest pivot in column k for partial pivoting.
+        std::size_t pivot_row = k;
+        double max_value = std::abs(lu[k * n + k]);
+
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double value = std::abs(lu[i * n + k]);
+
+            if (value > max_value) {
+                max_value = value;
+                pivot_row = i;
+            }
+        }
+
+        // If no nonzero pivot exists, the matrix is singular.
+        if (max_value == 0.0) {
+            return 0.0;
+        }
+
+        // Move the selected pivot onto the diagonal.
+        if (pivot_row != k) {
+            for (std::size_t j = 0; j < n; ++j) {
+                std::swap(
+                    lu[k * n + j],
+                    lu[pivot_row * n + j]
+                );
+            }
+
+            // Swapping two rows changes the sign of the determinant.
+            sign = -sign;
+        }
+
+        const double pivot = lu[k * n + k];
+
+        // Eliminate the coefficients below the pivot.
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double factor = lu[i * n + k] / pivot;
+            lu[i * n + k] = 0.0;
+
+            for (std::size_t j = k + 1; j < n; ++j) {
+                lu[i * n + j] -= factor * lu[k * n + j];
+            }
+        }
+    }
+
+    double determinant = static_cast<double>(sign);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        determinant *= lu[i * n + i];
+    }
+
+    return determinant;
+}
+
+// Computes the inverse of a square matrix using LU decomposition. (doesn't require previous computation of the determinant)
+Matrix Matrix::inv() const {
+    if (rows_ != cols_) {
+        throw std::invalid_argument("The matrix must be square");
+    }
+
+    const std::size_t n = rows_;
+
+    // The inverse of the empty matrix is the empty matrix.
+    if (n == 0) {
+        return Matrix(0, 0);
+    }
+
+    // Store both L and U in the same contiguous buffer:
+    // - U is stored on and above the diagonal.
+    // - L is stored below the diagonal.
+    // - The diagonal of L is implicitly equal to 1.
+    std::vector<double> lu = data_;
+
+    // pivots[k] records the row swapped with row k during factorization.
+    std::vector<std::size_t> pivots(n);
+
+    // Compute the LU factorization with partial pivoting.
+    for (std::size_t k = 0; k < n; ++k) {
+        std::size_t pivot_row = k;
+        double max_value = std::abs(lu[k * n + k]);
+
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double value = std::abs(lu[i * n + k]);
+
+            if (value > max_value) {
+                max_value = value;
+                pivot_row = i;
+            }
+        }
+
+        // No nonzero pivot means that the matrix is singular.
+        if (max_value == 0.0) {
+            throw std::runtime_error("The matrix is singular");
+        }
+
+        pivots[k] = pivot_row;
+
+        // Move the selected pivot onto the diagonal.
+        if (pivot_row != k) {
+            for (std::size_t j = 0; j < n; ++j) {
+                std::swap(
+                    lu[k * n + j],
+                    lu[pivot_row * n + j]
+                );
+            }
+        }
+
+        const double pivot = lu[k * n + k];
+
+        // Compute the multipliers of L and update the remaining
+        // submatrix to construct U.
+        for (std::size_t i = k + 1; i < n; ++i) {
+            lu[i * n + k] /= pivot;
+            const double multiplier = lu[i * n + k];
+
+            for (std::size_t j = k + 1; j < n; ++j) {
+                lu[i * n + j] -= multiplier * lu[k * n + j];
+            }
+        }
+    }
+
+    // Start with the identity matrix. It represents the right-hand
+    // side of AX = I.
+    Matrix inverse(n, n);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        inverse(i, i) = 1.0;
+    }
+
+    // Apply to the identity matrix the same row permutations that
+    // were applied during the LU factorization.
+    for (std::size_t k = 0; k < n; ++k) {
+        const std::size_t pivot_row = pivots[k];
+
+        if (pivot_row != k) {
+            for (std::size_t j = 0; j < n; ++j) {
+                std::swap(
+                    inverse(k, j),
+                    inverse(pivot_row, j)
+                );
+            }
+        }
+    }
+
+    // Forward substitution: solve LY = P * I.
+    // The diagonal coefficients of L are implicitly equal to 1.
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t k = 0; k < i; ++k) {
+            const double l_ik = lu[i * n + k];
+
+            for (std::size_t j = 0; j < n; ++j) {
+                inverse(i, j) -= l_ik * inverse(k, j);
+            }
+        }
+    }
+
+    // Back substitution: solve UX = Y.
+    for (std::size_t ii = n; ii-- > 0;) {
+        for (std::size_t k = ii + 1; k < n; ++k) {
+            const double u_ik = lu[ii * n + k];
+
+            for (std::size_t j = 0; j < n; ++j) {
+                inverse(ii, j) -= u_ik * inverse(k, j);
+            }
+        }
+
+        const double diagonal = lu[ii * n + ii];
+
+        for (std::size_t j = 0; j < n; ++j) {
+            inverse(ii, j) /= diagonal;
+        }
+    }
+
+    return inverse;
+}
+
+Matrix Matrix::transpose() const {
+    Matrix result(cols_, rows_);
+
+    for (std::size_t i = 0; i < rows_; ++i) {
+        for (std::size_t j = 0; j < cols_; ++j) {
+            result(j, i) = (*this)(i, j);
+        }
+    }
+
+    return result;
+
+
+}
+
+// solves the linear system Ax = b using LU decomposition with partial pivoting.
+Matrix Matrix::solve(const Matrix& b) const {
+    if (rows_ != cols_) {
+        throw std::invalid_argument("The matrix must be square");
+    }
+
+    if (b.rows_ != rows_) {
+        throw std::invalid_argument(
+            "The number of rows of B must match the size of A"
+        );
+    }
+
+    const std::size_t n = rows_;
+    const std::size_t rhs_cols = b.cols_;
+
+    if (n == 0) {
+        return Matrix(0, rhs_cols);
+    }
+
+    // Store L and U in a single contiguous buffer:
+    // - U is stored on and above the diagonal.
+    // - L is stored below the diagonal.
+    // - The diagonal of L is implicitly equal to 1.
+    std::vector<double> lu = data_;
+
+    // Store the row permutation performed at each elimination step.
+    std::vector<std::size_t> pivots(n);
+
+    // Compute the LU factorization with partial pivoting.
+    for (std::size_t k = 0; k < n; ++k) {
+        std::size_t pivot_row = k;
+        double max_value = std::abs(lu[k * n + k]);
+
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double value = std::abs(lu[i * n + k]);
+
+            if (value > max_value) {
+                max_value = value;
+                pivot_row = i;
+            }
+        }
+
+        // A missing nonzero pivot means that A is singular.
+        if (max_value == 0.0) {
+            throw std::runtime_error("The matrix is singular");
+        }
+
+        pivots[k] = pivot_row;
+
+        // Move the selected pivot onto the diagonal.
+        if (pivot_row != k) {
+            for (std::size_t j = 0; j < n; ++j) {
+                std::swap(
+                    lu[k * n + j],
+                    lu[pivot_row * n + j]
+                );
+            }
+        }
+
+        const double pivot = lu[k * n + k];
+
+        // Compute the multipliers of L and update U.
+        for (std::size_t i = k + 1; i < n; ++i) {
+            lu[i * n + k] /= pivot;
+            const double multiplier = lu[i * n + k];
+
+            for (std::size_t j = k + 1; j < n; ++j) {
+                lu[i * n + j] -= multiplier * lu[k * n + j];
+            }
+        }
+    }
+
+    // The solution initially contains a copy of B.
+    Matrix solution = b;
+
+    // Apply to B the same row permutations used for A.
+    for (std::size_t k = 0; k < n; ++k) {
+        const std::size_t pivot_row = pivots[k];
+
+        if (pivot_row != k) {
+            for (std::size_t j = 0; j < rhs_cols; ++j) {
+                std::swap(
+                    solution(k, j),
+                    solution(pivot_row, j)
+                );
+            }
+        }
+    }
+
+    // Forward substitution: solve LY = P * B.
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t k = 0; k < i; ++k) {
+            const double l_ik = lu[i * n + k];
+
+            for (std::size_t j = 0; j < rhs_cols; ++j) {
+                solution(i, j) -= l_ik * solution(k, j);
+            }
+        }
+    }
+
+    // Back substitution: solve UX = Y.
+    for (std::size_t ii = n; ii-- > 0;) {
+        for (std::size_t k = ii + 1; k < n; ++k) {
+            const double u_ik = lu[ii * n + k];
+
+            for (std::size_t j = 0; j < rhs_cols; ++j) {
+                solution(ii, j) -= u_ik * solution(k, j);
+            }
+        }
+
+        const double diagonal = lu[ii * n + ii];
+
+        for (std::size_t j = 0; j < rhs_cols; ++j) {
+            solution(ii, j) /= diagonal;
+        }
+    }
+
+    return solution;
+}
+
+Matrix Matrix::solve_cholesky(const Matrix& b) const {
+    if (rows_ != cols_) {
+        throw std::invalid_argument("The matrix must be square");
+    }
+
+    if (b.rows_ != rows_) {
+        throw std::invalid_argument(
+            "The number of rows of B must match the size of A"
+        );
+    }
+
+    const std::size_t n = rows_;
+    const std::size_t rhs_cols = b.cols_;
+
+    if (n == 0) {
+        return Matrix(0, rhs_cols);
+    }
+
+    // Compute the lower-triangular Cholesky factor L such that:
+    //
+    //     A = L * L^T
+    Matrix lower(n, n);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j <= i; ++j) {
+            double value = (*this)(i, j);
+
+            for (std::size_t k = 0; k < j; ++k) {
+                value -= lower(i, k) * lower(j, k);
+            }
+
+            if (i == j) {
+                if (value <= 0.0) {
+                    throw std::runtime_error(
+                        "The matrix is not positive definite"
+                    );
+                }
+
+                lower(i, j) = std::sqrt(value);
+            } else {
+                lower(i, j) = value / lower(j, j);
+            }
+        }
+    }
+
+    Matrix solution = b;
+
+    // Forward substitution: solve L * Y = B.
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t column = 0; column < rhs_cols; ++column) {
+            double value = solution(i, column);
+
+            for (std::size_t k = 0; k < i; ++k) {
+                value -= lower(i, k) * solution(k, column);
+            }
+
+            solution(i, column) = value / lower(i, i);
+        }
+    }
+
+    // Back substitution: solve L^T * X = Y.
+    for (std::size_t ii = n; ii-- > 0;) {
+        for (std::size_t column = 0; column < rhs_cols; ++column) {
+            double value = solution(ii, column);
+
+            for (std::size_t k = ii + 1; k < n; ++k) {
+                value -= lower(k, ii) * solution(k, column);
+            }
+
+            solution(ii, column) = value / lower(ii, ii);
+        }
+    }
+
+    return solution;
+}
 } // namespace chiikaml
