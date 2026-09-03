@@ -42,6 +42,7 @@ from sklearn.ensemble import RandomForestClassifier as SKRandomForest
 from sklearn.metrics import adjusted_rand_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier as SKDecisionTree
+from sklearn.linear_model import LinearRegression
 
 import chiikaml
 
@@ -154,6 +155,18 @@ def compare_kmeans(X, X_chiikaml):
     report("KMeans vs KMeans (sklearn)", fit_c, predict_c, fit_sk, predict_sk,
            "accord structurel (Adjusted Rand Index)", f"{ari:.3f}")
 
+def compare_linear_regression(X, y, X_chiikaml, y_list):
+    lr_c = chiikaml.LinearRegression(fit_intercept=True)
+    _, fit_c = timeit(lr_c.fit, X_chiikaml, y_list)
+    preds_c, predict_c = timeit(lr_c.predict, X_chiikaml)
+
+    lr_sk = LinearRegression(fit_intercept=True)
+    _, fit_sk = timeit(lr_sk.fit, X, y)
+    preds_sk, predict_sk = timeit(lr_sk.predict, X)
+
+    agreement = np.mean(np.isclose(preds_c, preds_sk))
+    report("LinearRegression vs LinearRegression (sklearn)", fit_c, predict_c, fit_sk,
+           predict_sk, "accord des predictions", f"{agreement * 100:.1f}%")
 
 def main():
     X, y = make_two_clusters(n_per_cluster=500)
@@ -164,6 +177,7 @@ def main():
     compare_decision_tree(X, y, X_chiikaml, y_list)
     compare_random_forest(X, y, X_chiikaml, y_list)
     compare_kmeans(X, X_chiikaml)
+    compare_linear_regression(X, y, X_chiikaml, y_list)
 
 
 if __name__ == "__main__":

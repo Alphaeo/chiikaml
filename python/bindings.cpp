@@ -9,6 +9,7 @@
 #include "chiikaml/knn.hpp"
 #include "chiikaml/matrix.hpp"
 #include "chiikaml/random_forest.hpp"
+#include "chiikaml/linear_regression.hpp"
 
 namespace py = pybind11;
 using namespace chiikaml;
@@ -70,4 +71,12 @@ PYBIND11_MODULE(chiikaml, m) {
              py::arg("max_depth") = 5, py::arg("min_samples_split") = 2, py::arg("seed") = 42)
         .def("fit", &RandomForestClassifier::fit, py::arg("X"), py::arg("y"))
         .def("predict", &RandomForestClassifier::predict, py::arg("X"));
+
+    py::class_<LinearRegression>(m, "LinearRegression")
+        .def(py::init<bool>(), py::arg("fit_intercept") = true)
+        .def("fit", &LinearRegression::fit, py::arg("X"), py::arg("y"))
+        .def("predict", &LinearRegression::predict, py::arg("X"))
+        .def("coefficients", &LinearRegression::coefficients, py::return_value_policy::copy)
+        .def("intercept", &LinearRegression::intercept);
+
 }
