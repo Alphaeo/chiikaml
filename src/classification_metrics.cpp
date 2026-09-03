@@ -1,4 +1,4 @@
-#include "chiikaml/metrics.hpp"
+#include "chiikaml/metrics/classification_metrics.hpp"
 
 #include <algorithm>
 #include <stdexcept>

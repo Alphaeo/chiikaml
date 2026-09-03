@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "chiikaml/metrics.hpp"
+#include "chiikaml/metrics/classification_metrics.hpp"
 
 using chiikaml::Matrix;
 using namespace chiikaml::metrics;
