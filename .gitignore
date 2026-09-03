@@ -1,4 +1,5 @@
 build/
+_deps/
 out/
 .cache/
 *.o
