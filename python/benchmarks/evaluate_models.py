@@ -34,6 +34,7 @@ import chiikaml
 
 def to_chiikaml_matrix(values):
     """Convert a NumPy array to a chiikaml Matrix."""
+
     matrix = chiikaml.Matrix(
         values.shape[0],
         values.shape[1],
@@ -53,6 +54,7 @@ def standardize_train_test(X_train, X_test):
     Fitting the transformation exclusively on training data avoids
     leaking information from the test set.
     """
+
     n_train = X_train.rows()
     n_test = X_test.rows()
     n_features = X_train.cols()
@@ -105,6 +107,8 @@ def standardize_train_test(X_train, X_test):
 
 
 def time_call(function, *args):
+    """Execute a function and return its result and execution time."""
+
     start = time.perf_counter()
     result = function(*args)
     elapsed_ms = (time.perf_counter() - start) * 1000.0
@@ -112,17 +116,63 @@ def time_call(function, *args):
     return result, elapsed_ms
 
 
-def evaluate_model(name, model, X_train, y_train, X_test, y_test):
+def encode_svm_labels(labels):
+    """
+    Convert binary labels from 0/1 to -1/+1.
+
+    BinarySVM is an internal binary solver and therefore works with
+    signed labels.
+    """
+
+    return [
+        1 if label == 1 else -1
+        for label in labels
+    ]
+
+
+def decode_svm_predictions(predictions):
+    """Convert BinarySVM predictions from -1/+1 back to 0/1."""
+
+    return [
+        1 if prediction == 1 else 0
+        for prediction in predictions
+    ]
+
+
+def evaluate_model(
+    name,
+    model,
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    uses_signed_labels=False,
+):
+    """
+    Fit and evaluate one classification model.
+
+    uses_signed_labels must be true for BinarySVM because its internal
+    labels are encoded as -1 and +1.
+    """
+
+    training_labels = y_train
+
+    if uses_signed_labels:
+        training_labels = encode_svm_labels(y_train)
+
     _, fit_time = time_call(
         model.fit,
         X_train,
-        y_train,
+        training_labels,
     )
 
     predictions, predict_time = time_call(
         model.predict,
         X_test,
     )
+
+    if uses_signed_labels:
+        predictions = decode_svm_predictions(predictions)
 
     accuracy = chiikaml.metrics.accuracy(
         y_test,
@@ -156,9 +206,19 @@ def evaluate_model(name, model, X_train, y_train, X_test, y_test):
     print(f"Precision:    {precision:.4f}")
     print(f"Recall:       {recall:.4f}")
     print(f"F1 score:     {f1:.4f}")
-
     print("Confusion matrix:")
     print(confusion)
+
+    if uses_signed_labels:
+        print(
+            "Support vectors: "
+            f"{model.number_of_support_vectors()}"
+        )
+        print(f"Converged:       {model.converged()}")
+        print(f"SMO iterations:  {model.iterations()}")
+        print(f"Effective gamma: {model.gamma():.6f}")
+
+    print()
 
     return {
         "name": name,
@@ -180,6 +240,7 @@ def main():
     )
 
     # In the original sklearn dataset:
+    #
     #     0 = malignant
     #     1 = benign
     #
@@ -214,10 +275,16 @@ def main():
     print("Positive label:   1 = malignant")
     print()
 
+    # Each entry contains:
+    #
+    #     model name
+    #     model instance
+    #     whether the model expects labels encoded as -1/+1
     models = [
         (
             "KNNClassifier",
             chiikaml.KNNClassifier(5),
+            False,
         ),
         (
             "DecisionTreeClassifier",
@@ -225,6 +292,7 @@ def main():
                 max_depth=5,
                 min_samples_split=2,
             ),
+            False,
         ),
         (
             "RandomForestClassifier",
@@ -234,12 +302,39 @@ def main():
                 min_samples_split=2,
                 seed=42,
             ),
+            False,
+        ),
+        (
+            "BinarySVM (linear)",
+            chiikaml.BinarySVM(
+                C=1.0,
+                kernel=chiikaml.SVMKernel.Linear,
+                gamma=0.0,
+                max_iterations=5000,
+                tolerance=1e-4,
+                fit_intercept=True,
+                seed=42,
+            ),
+            True,
+        ),
+        (
+            "BinarySVM (RBF)",
+            chiikaml.BinarySVM(
+                C=1.0,
+                kernel=chiikaml.SVMKernel.RBF,
+                gamma=0.0,
+                max_iterations=5000,
+                tolerance=1e-4,
+                fit_intercept=True,
+                seed=42,
+            ),
+            True,
         ),
     ]
 
     results = []
 
-    for name, model in models:
+    for name, model, uses_signed_labels in models:
         result = evaluate_model(
             name,
             model,
@@ -247,6 +342,7 @@ def main():
             split.y_train,
             X_test,
             split.y_test,
+            uses_signed_labels=uses_signed_labels,
         )
 
         results.append(result)

@@ -24,6 +24,7 @@ add_library(chiikaml
     src/tensor.cpp
     src/classification_metrics.cpp
     src/train_test_split.cpp
+    src/binary_svm.cpp
 )
 
 target_include_directories(chiikaml PUBLIC

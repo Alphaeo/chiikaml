@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "chiikaml/decision_tree.hpp"
+#include "chiikaml/binary_svm.hpp"
 #include "chiikaml/kdtree.hpp"
 #include "chiikaml/kmeans.hpp"
 #include "chiikaml/knn.hpp"
@@ -13,6 +14,7 @@
 #include "chiikaml/metrics/classification_metrics.hpp"
 #include "chiikaml/model_selection/train_test_split.hpp"
 #include "chiikaml/random_forest.hpp"
+#include "chiikaml/svm_kernels.hpp"
 
 namespace py = pybind11;
 
@@ -194,7 +196,107 @@ PYBIND11_MODULE(chiikaml, m) {
             &LinearRegression::intercept
         );
 
-    // Classification metrics
+    // Available kernel functions for BinarySVM.
+    py::enum_<SVMKernel>(m, "SVMKernel")
+        .value("Linear", SVMKernel::Linear)
+        .value("Polynomial", SVMKernel::Polynomial)
+        .value("RBF", SVMKernel::RBF);
+
+    // Binary SVM classifier.
+    //
+    // Training labels must be encoded as -1 and +1.
+    py::class_<BinarySVM>(m, "BinarySVM")
+        .def(
+            py::init<
+                double,
+                SVMKernel,
+                double,
+                std::size_t,
+                double,
+                std::size_t,
+                double,
+                bool,
+                unsigned int
+            >(),
+            py::arg("C") = 1.0,
+            py::arg("kernel") = SVMKernel::RBF,
+            py::arg("gamma") = 0.0,
+            py::arg("degree") = 3,
+            py::arg("coef0") = 0.0,
+            py::arg("max_iterations") = 1000,
+            py::arg("tolerance") = 1e-4,
+            py::arg("fit_intercept") = true,
+            py::arg("seed") = 42
+        )
+        .def(
+            "fit",
+            &BinarySVM::fit,
+            py::arg("X"),
+            py::arg("y")
+        )
+        .def(
+            "predict",
+            &BinarySVM::predict,
+            py::arg("X")
+        )
+        .def(
+            "decision_function",
+            &BinarySVM::decision_function,
+            py::arg("X")
+        )
+        .def(
+            "decision_value",
+            &BinarySVM::decision_value,
+            py::arg("X"),
+            py::arg("sample_row")
+        )
+        .def(
+            "support_vectors",
+            &BinarySVM::support_vectors,
+            py::return_value_policy::copy
+        )
+        .def(
+            "dual_coefficients",
+            &BinarySVM::dual_coefficients,
+            py::return_value_policy::copy
+        )
+        .def(
+            "intercept",
+            &BinarySVM::intercept
+        )
+        .def(
+            "C",
+            &BinarySVM::C
+        )
+        .def(
+            "kernel",
+            &BinarySVM::kernel
+        )
+        .def(
+            "gamma",
+            &BinarySVM::gamma
+        )
+        .def(
+            "degree",
+            &BinarySVM::degree
+        )
+        .def(
+            "coef0",
+            &BinarySVM::coef0
+        )
+        .def(
+            "converged",
+            &BinarySVM::converged
+        )
+        .def(
+            "iterations",
+            &BinarySVM::iterations
+        )
+        .def(
+            "number_of_support_vectors",
+            &BinarySVM::number_of_support_vectors
+        );
+        // Classification metrics.
     py::module_ metrics_module = m.def_submodule(
         "metrics",
         "Classification metrics"
@@ -274,14 +376,13 @@ PYBIND11_MODULE(chiikaml, m) {
             bool shuffle,
             unsigned int seed
         ) {
-            return chiikaml::model_selection::
-                train_test_split<int>(
-                    X,
-                    y,
-                    train_size,
-                    shuffle,
-                    seed
-                );
+            return chiikaml::model_selection::train_test_split<int>(
+                X,
+                y,
+                train_size,
+                shuffle,
+                seed
+            );
         },
         py::arg("X"),
         py::arg("y"),
