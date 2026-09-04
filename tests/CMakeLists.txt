@@ -16,7 +16,11 @@ add_executable(chiikaml_tests
     test_random_forest.cpp
     test_linear_regression.cpp
     test_ridge_regression.cpp
+    test_lasso_regression.cpp
     test_tensor.cpp
+    test_classification_metrics.cpp
+    test_split.cpp
+    test_binary_svm.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE
