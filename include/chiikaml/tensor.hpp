@@ -120,6 +120,45 @@ public:
     // ni egale a 1 (aucune regle de broadcasting ne s'applique).
     Tensor broadcast_to(std::vector<std::size_t> target_shape) const;
 
+    // Produit matriciel avec support du "batching" façon NumPy/PyTorch
+    // (np.matmul / torch.matmul) : chaque tenseur est vu comme une
+    // PILE de matrices. Les DEUX DERNIERES dimensions sont les
+    // dimensions matricielles -- ce->shape() se termine par {..., m,
+    // k}, other.shape() par {..., k, n} (le k doit correspondre,
+    // sinon throw std::invalid_argument). Tout ce qui precede ces
+    // deux dernieres dimensions est une dimension de "lot" (batch).
+    //
+    // Les dimensions de lot des deux tenseurs sont combinees entre
+    // elles selon EXACTEMENT les memes regles que broadcast_to() :
+    // alignees a droite, dimensions implicites de taille 1 ajoutees a
+    // gauche si l'un des deux tenseurs a moins de dimensions de lot
+    // que l'autre, une dimension a 1 est etiree pour correspondre a
+    // l'autre. Incompatible (ni egales, ni l'une des deux a 1) ->
+    // throw std::invalid_argument.
+    //
+    // Le resultat a pour forme batch_shape + {m, n} (batch_shape
+    // etant le resultat du broadcasting ci-dessus), et pour chaque
+    // combinaison d'indices de lot : result[..., i, j] = somme sur p
+    // de a[..., i, p] * b[..., p, j] -- la meme formule que le
+    // produit matriciel 2D classique, appliquee independamment a
+    // CHAQUE matrice de la pile.
+    //
+    // Cas particulier : deux tenseurs 2D purs (aucune dimension de
+    // lot) donnent exactement le meme resultat qu'un matmul 2D
+    // classique -- batch_shape est vide, une seule matrice "dans la
+    // pile".
+    //
+    // Contrairement a transpose()/reshape()/broadcast_to(), ce n'est
+    // PAS une vue : le resultat est un nouveau tenseur, avec son
+    // propre buffer (les valeurs sont calculees, pas juste
+    // reinterpretees).
+    //
+    // Leve std::invalid_argument si : ce->ndim() < 2 ou other.ndim()
+    // < 2 (il faut au moins une partie matricielle des deux cotes) ;
+    // les dimensions matricielles internes ne correspondent pas ; ou
+    // les dimensions de lot ne sont pas broadcast-compatibles.
+    Tensor matmul(const Tensor& other) const;
+
 private:
     std::vector<std::size_t> shape_;
     std::vector<std::size_t> strides_;

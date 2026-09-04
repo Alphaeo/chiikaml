@@ -2,6 +2,7 @@
 
 #include <numeric>
 #include <stdexcept>
+#include <algorithm>
 
 namespace chiikaml {
 
@@ -206,6 +207,175 @@ Tensor Tensor::broadcast_to(std::vector<std::size_t> target_shape) const {
         }
     }
     return Tensor(target_shape, new_strides, data_);
+}
+
+namespace {
+
+// Incremente `index` d'un cran par rapport a `shape`, facon compteur
+// kilometrique (odometer) : c'est le meme principe qu'une addition
+// avec retenue, mais en "base shape[k]" a chaque position k au lieu
+// d'une base fixe (10 pour un compteur decimal classique).
+//
+// TODO(toi), etape par etape :
+//
+// - parcours les positions de `index` A L'ENVERS (de la DERNIERE vers
+//   la premiere -- utilise un indice signe, ou compte a rebours, pas
+//   les reverse iterators ici puisqu'on doit pouvoir s'arreter au
+//   milieu).
+//
+// - pour chaque position k (en partant de la fin) : incremente
+//   index[k]. Si index[k] < shape[k] apres l'incrementation, tu as
+//   fini -- renvoie true (pas de retenue a propager plus loin).
+//
+// - sinon (index[k] a atteint shape[k], "deborde") : remets index[k]
+//   a 0 (retenue) et continue vers la position PRECEDENTE (k-1) --
+//   exactement comme "9+1" devient "0" avec une retenue de 1 vers la
+//   colonne suivante en addition decimale.
+//
+// - si tu deborde meme sur la toute premiere position (k==0 a
+//   deborde) : il n'y a plus de position ou propager la retenue,
+//   toutes les combinaisons ont ete parcourues -- renvoie false.
+//
+// - cas particulier a ne pas oublier : shape vide (index vide, tenseur
+//   sans dimension de lot) -- il n'y a qu'une seule "combinaison"
+//   (l'index vide lui-meme), donc un seul appel a ce point de vue
+//   devrait renvoyer false immediatement (rien a incrementer).
+bool increment_index(std::vector<std::size_t>& index, const std::vector<std::size_t>& shape) {
+    std::size_t ndim = shape.size();
+    for (std::size_t k = ndim; k-- > 0;) {
+        index[k]++;
+        if (index[k] < shape[k]) {
+            return true;
+        } else {
+            index[k] = 0;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+// TODO(toi), etape par etape -- la plus grosse fonction de Tensor,
+// mais chaque etape reutilise quelque chose que tu as deja ecrit :
+//
+// - verifie ce->ndim() >= 2 ET other.ndim() >= 2, sinon throw
+//   std::invalid_argument.
+//
+// - extrait les dimensions matricielles : m = shape_[ndim()-2],
+//   k = shape_[ndim()-1], k2 = other.shape()[other.ndim()-2],
+//   n = other.shape()[other.ndim()-1]. Si k != k2, throw
+//   std::invalid_argument.
+//
+// - calcule batch_shape : la combinaison (façon broadcast_to) des
+//   dimensions de lot de ce tenseur (shape_ SANS les deux dernieres)
+//   et de other (other.shape() SANS les deux dernieres). Meme
+//   principe que la boucle de broadcast_to(), mais entre DEUX formes
+//   au lieu d'une forme et une cible fixe :
+//     - batch_ndim = max(ndim()-2, other.ndim()-2)
+//     - pour k de 0 a batch_ndim-1 (en partant de la DROITE, comme
+//       dans broadcast_to) : recupere dim_a (1 implicite si ce
+//       tenseur n'a pas assez de dimensions de lot a cette position)
+//       et dim_b (meme logique) ; si dim_a == dim_b -> garde cette
+//       valeur ; sinon si l'un des deux vaut 1 -> prends l'autre ;
+//       sinon -> throw std::invalid_argument.
+//
+// - construis les formes cibles pour chaque tenseur : batch_shape +
+//   {m, k} pour ce tenseur, batch_shape + {k, n} pour other. Utilise
+//   broadcast_to() (deja ecrit !) sur chacun pour obtenir deux VUES
+//   qui ont maintenant exactement la meme forme de lot.
+//
+// - cree Tensor result(batch_shape + {m, n}) (deja a 0.0).
+//
+// - parcours TOUTES les combinaisons d'indices de lot : un
+//   std::vector<std::size_t> batch_index(batch_shape.size(), 0), puis
+//   une boucle "do { ... } while (increment_index(batch_index,
+//   batch_shape));" -- a chaque iteration, fais la triple boucle
+//   matricielle classique (i, j, p) en construisant les indices
+//   complets par CONCATENATION : batch_index + {i, p} pour lire dans
+//   la vue broadcastee de ce tenseur, batch_index + {p, j} pour
+//   other, batch_index + {i, j} pour ecrire dans result.
+//
+// - renvoie result.
+Tensor Tensor::matmul(const Tensor& other) const {
+    
+    if (ndim() < 2 || other.ndim() < 2) {
+        throw std::invalid_argument("Both tensors must have at least 2 dimensions for matmul");
+    }
+
+    std::size_t m = shape_[ndim() - 2];
+    std::size_t k = shape_[ndim() - 1];
+    std::size_t k2 = other.shape()[other.ndim() - 2];
+    std::size_t n = other.shape()[other.ndim() - 1];
+
+    if (k != k2) {
+        throw std::invalid_argument("Inner dimensions must match for matmul");
+    }
+
+    // Compute batch_shape
+    std::vector<std::size_t> batch_shape;
+    std::size_t this_batch_ndim = ndim() - 2;
+    std::size_t other_batch_ndim = other.ndim() - 2;
+    std::size_t batch_ndim = std::max(this_batch_ndim, other_batch_ndim);
+
+    for (std::size_t i = 0; i < batch_ndim; ++i) {
+        std::size_t dim_a = (i < this_batch_ndim) ? shape_[this_batch_ndim - 1 - i] : 1;
+        std::size_t dim_b = (i < other_batch_ndim) ? other.shape()[other_batch_ndim - 1 - i] : 1;
+
+        if (dim_a == dim_b) {
+            batch_shape.push_back(dim_a);
+        } else if (dim_a == 1) {
+            batch_shape.push_back(dim_b);
+        } else if (dim_b == 1) {
+            batch_shape.push_back(dim_a);
+        } else {
+            throw std::invalid_argument("Incompatible batch dimensions for matmul");
+        }
+    }
+    std::reverse(batch_shape.begin(), batch_shape.end());
+
+    // Broadcast tensors to the same batch shape
+    std::vector<size_t> size_a = batch_shape;
+    size_a.push_back(m);
+    size_a.push_back(k);
+    std::vector<size_t> size_b = batch_shape;
+    size_b.push_back(k);
+    size_b.push_back(n);
+
+    Tensor a_broadcasted = broadcast_to(size_a);
+    Tensor b_broadcasted = other.broadcast_to(size_b);
+
+    // Create result tensor
+    std::vector<std::size_t> result_shape = batch_shape;
+    result_shape.push_back(m);
+    result_shape.push_back(n);
+    Tensor result(result_shape);
+
+    // Iterate over all combinations of batch indices
+    std::vector<std::size_t> batch_index(batch_shape.size(), 0);
+    do {
+        for (std::size_t i = 0; i < m; ++i) {
+            for (std::size_t j = 0; j < n; ++j) {
+                double sum = 0.0;
+                for (std::size_t p = 0; p < k; ++p) {
+                    std::vector<std::size_t> a_index = batch_index;
+                    a_index.push_back(i);
+                    a_index.push_back(p);
+
+                    std::vector<std::size_t> b_index = batch_index;
+                    b_index.push_back(p);
+                    b_index.push_back(j);
+
+                    sum += a_broadcasted(a_index) * b_broadcasted(b_index);
+                }
+                std::vector<std::size_t> result_index = batch_index;
+                result_index.push_back(i);
+                result_index.push_back(j);
+                result(result_index) = sum;
+            }
+        }
+    } while (increment_index(batch_index, batch_shape));
+
+    return result;
 }
 
 } // namespace chiikaml

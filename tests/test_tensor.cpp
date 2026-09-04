@@ -179,3 +179,101 @@ TEST_CASE("broadcast_to leve une exception si target_shape a moins de dimensions
 
     REQUIRE_THROWS_AS(t.broadcast_to({3}), std::invalid_argument);
 }
+
+TEST_CASE("matmul calcule le produit matriciel classique", "[tensor]") {
+    // a (2x3) * b (3x2) = c (2x2)
+    Tensor a({2, 3});
+    a({0, 0}) = 1; a({0, 1}) = 2; a({0, 2}) = 3;
+    a({1, 0}) = 4; a({1, 1}) = 5; a({1, 2}) = 6;
+
+    Tensor b({3, 2});
+    b({0, 0}) = 7;  b({0, 1}) = 8;
+    b({1, 0}) = 9;  b({1, 1}) = 10;
+    b({2, 0}) = 11; b({2, 1}) = 12;
+
+    Tensor c = a.matmul(b);
+
+    REQUIRE(c.shape() == std::vector<std::size_t>{2, 2});
+    // c(0,0) = 1*7 + 2*9 + 3*11 = 58
+    REQUIRE(c({0, 0}) == 58);
+    // c(0,1) = 1*8 + 2*10 + 3*12 = 64
+    REQUIRE(c({0, 1}) == 64);
+    // c(1,0) = 4*7 + 5*9 + 6*11 = 139
+    REQUIRE(c({1, 0}) == 139);
+    // c(1,1) = 4*8 + 5*10 + 6*12 = 154
+    REQUIRE(c({1, 1}) == 154);
+}
+
+TEST_CASE("matmul leve une exception si les dimensions internes ne correspondent pas", "[tensor]") {
+    Tensor a({2, 3});
+    Tensor b({4, 2}); // 4 != 3
+
+    REQUIRE_THROWS_AS(a.matmul(b), std::invalid_argument);
+}
+
+TEST_CASE("matmul en lot (batch) calcule chaque matrice de la pile independamment", "[tensor]") {
+    // a et b ont tous les deux un batch de taille 2 (aucun
+    // broadcasting necessaire) : deux 2x2 * 2x2 independants.
+    Tensor a({2, 2, 2});
+    // batch 0 : [[1,2],[3,4]]
+    a({0, 0, 0}) = 1; a({0, 0, 1}) = 2;
+    a({0, 1, 0}) = 3; a({0, 1, 1}) = 4;
+    // batch 1 : [[5,6],[7,8]]
+    a({1, 0, 0}) = 5; a({1, 0, 1}) = 6;
+    a({1, 1, 0}) = 7; a({1, 1, 1}) = 8;
+
+    Tensor b({2, 2, 2});
+    // batch 0 : identite
+    b({0, 0, 0}) = 1; b({0, 0, 1}) = 0;
+    b({0, 1, 0}) = 0; b({0, 1, 1}) = 1;
+    // batch 1 : permutation (echange les colonnes)
+    b({1, 0, 0}) = 0; b({1, 0, 1}) = 1;
+    b({1, 1, 0}) = 1; b({1, 1, 1}) = 0;
+
+    Tensor c = a.matmul(b);
+
+    REQUIRE(c.shape() == std::vector<std::size_t>{2, 2, 2});
+    // batch 0 : a0 * identite = a0
+    REQUIRE(c({0, 0, 0}) == 1); REQUIRE(c({0, 0, 1}) == 2);
+    REQUIRE(c({0, 1, 0}) == 3); REQUIRE(c({0, 1, 1}) == 4);
+    // batch 1 : a1 * permutation = colonnes de a1 echangees
+    REQUIRE(c({1, 0, 0}) == 6); REQUIRE(c({1, 0, 1}) == 5);
+    REQUIRE(c({1, 1, 0}) == 8); REQUIRE(c({1, 1, 1}) == 7);
+}
+
+TEST_CASE("matmul broadcast un tenseur sans dimension de lot sur l'autre", "[tensor]") {
+    // a a un batch de 2, b n'en a pas (2D pur) -- b doit etre
+    // "reutilise" pour les deux matrices du lot de a.
+    Tensor a({2, 2, 3});
+    a({0, 0, 0}) = 1; a({0, 0, 1}) = 2; a({0, 0, 2}) = 3;
+    a({0, 1, 0}) = 4; a({0, 1, 1}) = 5; a({0, 1, 2}) = 6;
+    a({1, 0, 0}) = 7;  a({1, 0, 1}) = 8;  a({1, 0, 2}) = 9;
+    a({1, 1, 0}) = 10; a({1, 1, 1}) = 11; a({1, 1, 2}) = 12;
+
+    Tensor b({3, 2});
+    b({0, 0}) = 1; b({0, 1}) = 0;
+    b({1, 0}) = 0; b({1, 1}) = 1;
+    b({2, 0}) = 1; b({2, 1}) = 1;
+
+    Tensor c = a.matmul(b);
+
+    REQUIRE(c.shape() == std::vector<std::size_t>{2, 2, 2});
+    REQUIRE(c({0, 0, 0}) == 4);  REQUIRE(c({0, 0, 1}) == 5);
+    REQUIRE(c({0, 1, 0}) == 10); REQUIRE(c({0, 1, 1}) == 11);
+    REQUIRE(c({1, 0, 0}) == 16); REQUIRE(c({1, 0, 1}) == 17);
+    REQUIRE(c({1, 1, 0}) == 22); REQUIRE(c({1, 1, 1}) == 23);
+}
+
+TEST_CASE("matmul leve une exception si les dimensions de lot ne sont pas broadcast-compatibles", "[tensor]") {
+    Tensor a({2, 2, 2}); // batch = 2
+    Tensor b({3, 2, 2}); // batch = 3 -- ni egal, ni 1
+
+    REQUIRE_THROWS_AS(a.matmul(b), std::invalid_argument);
+}
+
+TEST_CASE("matmul leve une exception si un des deux tenseurs a moins de 2 dimensions", "[tensor]") {
+    Tensor a({3});    // 1D, pas de partie matricielle
+    Tensor b({3, 2});
+
+    REQUIRE_THROWS_AS(a.matmul(b), std::invalid_argument);
+}
