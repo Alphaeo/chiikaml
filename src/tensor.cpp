@@ -350,27 +350,52 @@ Tensor Tensor::matmul(const Tensor& other) const {
     result_shape.push_back(n);
     Tensor result(result_shape);
 
-    // Iterate over all combinations of batch indices
+    // Iterate over all combinations of batch indices. Contrairement a
+    // la version precedente, on n'alloue plus aucun vector<size_t>
+    // dans les boucles i/j/p : on descend directement au niveau des
+    // strides_ et des buffers plats (comme operator+), pour eviter
+    // une allocation heap par element -- l'allocation dominait
+    // largement le cout reel du calcul (une addition/multiplication
+    // est bien moins chere qu'un malloc).
+    double* a_data = a_broadcasted.data_->data();
+    double* b_data = b_broadcasted.data_->data();
+    double* result_data = result.data_->data();
+
+    // Strides de la partie matricielle (les 2 dernieres dimensions),
+    // identiques pour toute combinaison d'indices de lot.
+    std::size_t a_row_stride = a_broadcasted.strides_[batch_ndim];       // avancer de 1 sur i
+    std::size_t a_col_stride = a_broadcasted.strides_[batch_ndim + 1];   // avancer de 1 sur p
+    std::size_t b_row_stride = b_broadcasted.strides_[batch_ndim];       // avancer de 1 sur p
+    std::size_t b_col_stride = b_broadcasted.strides_[batch_ndim + 1];   // avancer de 1 sur j
+    std::size_t result_row_stride = result.strides_[batch_ndim];        // avancer de 1 sur i
+    std::size_t result_col_stride = result.strides_[batch_ndim + 1];    // avancer de 1 sur j
+
     std::vector<std::size_t> batch_index(batch_shape.size(), 0);
     do {
+        // Offset de depart pour cette combinaison de lot -- calcule
+        // UNE fois par combinaison (cout O(batch_ndim)), pas a chaque
+        // element de la matrice (cout O(m*n*k) sinon).
+        std::size_t a_batch_offset = 0;
+        std::size_t b_batch_offset = 0;
+        std::size_t result_batch_offset = 0;
+        for (std::size_t d = 0; d < batch_shape.size(); ++d) {
+            a_batch_offset += batch_index[d] * a_broadcasted.strides_[d];
+            b_batch_offset += batch_index[d] * b_broadcasted.strides_[d];
+            result_batch_offset += batch_index[d] * result.strides_[d];
+        }
+
         for (std::size_t i = 0; i < m; ++i) {
+            std::size_t a_row_offset = a_batch_offset + i * a_row_stride;
+            std::size_t result_row_offset = result_batch_offset + i * result_row_stride;
+
             for (std::size_t j = 0; j < n; ++j) {
+                std::size_t b_col_offset = b_batch_offset + j * b_col_stride;
+
                 double sum = 0.0;
                 for (std::size_t p = 0; p < k; ++p) {
-                    std::vector<std::size_t> a_index = batch_index;
-                    a_index.push_back(i);
-                    a_index.push_back(p);
-
-                    std::vector<std::size_t> b_index = batch_index;
-                    b_index.push_back(p);
-                    b_index.push_back(j);
-
-                    sum += a_broadcasted(a_index) * b_broadcasted(b_index);
+                    sum += a_data[a_row_offset + p * a_col_stride] * b_data[b_col_offset + p * b_row_stride];
                 }
-                std::vector<std::size_t> result_index = batch_index;
-                result_index.push_back(i);
-                result_index.push_back(j);
-                result(result_index) = sum;
+                result_data[result_row_offset + j * result_col_stride] = sum;
             }
         }
     } while (increment_index(batch_index, batch_shape));
