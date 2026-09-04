@@ -220,6 +220,13 @@ void BinarySVM::fit(
         0
     );
 
+    std::vector<std::size_t> candidate_order(n_samples);
+    std::iota(
+        candidate_order.begin(),
+        candidate_order.end(),
+        0
+    );
+
     bool new_converged = false;
     std::size_t performed_iterations = 0;
 
@@ -233,7 +240,152 @@ void BinarySVM::fit(
             errors[i] = -static_cast<double>(y[i]);
         }
 
-        // Simplified Platt SMO.
+        const double alpha_epsilon =
+            100.0
+            * std::numeric_limits<double>::epsilon()
+            * std::max(1.0, C_);
+
+        // Attempts one SMO update for the pair (i, j).
+        const auto take_step =
+            [&](std::size_t i, std::size_t j) {
+                if (i == j) {
+                    return false;
+                }
+
+                const double y_i =
+                    static_cast<double>(y[i]);
+                const double y_j =
+                    static_cast<double>(y[j]);
+
+                const double error_i = errors[i];
+                const double error_j = errors[j];
+                const double old_alpha_i = alphas[i];
+                const double old_alpha_j = alphas[j];
+
+                double lower_bound;
+                double upper_bound;
+
+                if (y[i] != y[j]) {
+                    lower_bound = std::max(
+                        0.0,
+                        old_alpha_j - old_alpha_i
+                    );
+                    upper_bound = std::min(
+                        C_,
+                        C_ + old_alpha_j - old_alpha_i
+                    );
+                } else {
+                    lower_bound = std::max(
+                        0.0,
+                        old_alpha_i + old_alpha_j - C_
+                    );
+                    upper_bound = std::min(
+                        C_,
+                        old_alpha_i + old_alpha_j
+                    );
+                }
+
+                if (upper_bound - lower_bound <=
+                    alpha_epsilon) {
+                    return false;
+                }
+
+                // Kii + Kjj - 2*Kij is non-negative for a
+                // positive-semidefinite kernel.
+                const double eta =
+                    kernel_matrix(i, i)
+                    + kernel_matrix(j, j)
+                    - 2.0 * kernel_matrix(i, j);
+
+                if (eta <=
+                    std::numeric_limits<double>::epsilon()) {
+                    return false;
+                }
+
+                double new_alpha_j =
+                    old_alpha_j
+                    + y_j * (error_i - error_j) / eta;
+
+                new_alpha_j = std::clamp(
+                    new_alpha_j,
+                    lower_bound,
+                    upper_bound
+                );
+
+                if (std::abs(new_alpha_j - old_alpha_j) <=
+                    alpha_epsilon) {
+                    return false;
+                }
+
+                double new_alpha_i =
+                    old_alpha_i
+                    + y_i * y_j
+                    * (old_alpha_j - new_alpha_j);
+
+                // Round tiny numerical excursions back onto the
+                // feasible box.
+                new_alpha_i = std::clamp(
+                    new_alpha_i,
+                    0.0,
+                    C_
+                );
+
+                const double delta_i =
+                    new_alpha_i - old_alpha_i;
+                const double delta_j =
+                    new_alpha_j - old_alpha_j;
+                const double old_intercept = new_intercept;
+
+                const double first_intercept =
+                    old_intercept
+                    - error_i
+                    - y_i * delta_i * kernel_matrix(i, i)
+                    - y_j * delta_j * kernel_matrix(i, j);
+
+                const double second_intercept =
+                    old_intercept
+                    - error_j
+                    - y_i * delta_i * kernel_matrix(i, j)
+                    - y_j * delta_j * kernel_matrix(j, j);
+
+                if (new_alpha_i > alpha_epsilon &&
+                    new_alpha_i < C_ - alpha_epsilon) {
+                    new_intercept = first_intercept;
+                } else if (
+                    new_alpha_j > alpha_epsilon &&
+                    new_alpha_j < C_ - alpha_epsilon
+                ) {
+                    new_intercept = second_intercept;
+                } else {
+                    new_intercept =
+                        0.5
+                        * (first_intercept + second_intercept);
+                }
+
+                alphas[i] = new_alpha_i;
+                alphas[j] = new_alpha_j;
+
+                const double intercept_change =
+                    new_intercept - old_intercept;
+
+                // Keep the complete error cache synchronized with
+                // the current alphas and intercept.
+                for (std::size_t sample = 0;
+                     sample < n_samples;
+                     ++sample) {
+                    errors[sample] +=
+                        y_i * delta_i
+                            * kernel_matrix(i, sample)
+                        + y_j * delta_j
+                            * kernel_matrix(j, sample)
+                        + intercept_change;
+                }
+
+                return true;
+            };
+
+        // Platt SMO. A failed first choice for j is not convergence:
+        // other non-bound samples and then every sample are tried.
         for (std::size_t iteration = 0;
              iteration < max_iterations_;
              ++iteration) {
@@ -250,187 +402,135 @@ void BinarySVM::fit(
                  ++position) {
                 const std::size_t i = sample_order[position];
 
-                const double y_i =
-                    static_cast<double>(y[i]);
-
-                const double error_i = errors[i];
+                const double signed_error =
+                    static_cast<double>(y[i]) * errors[i];
 
                 const bool violates_lower_bound =
-                    y_i * error_i < -tolerance_
-                    && alphas[i] < C_;
+                    signed_error < -tolerance_
+                    && alphas[i] < C_ - alpha_epsilon;
 
                 const bool violates_upper_bound =
-                    y_i * error_i > tolerance_
-                    && alphas[i] > 0.0;
+                    signed_error > tolerance_
+                    && alphas[i] > alpha_epsilon;
 
                 if (!violates_lower_bound &&
                     !violates_upper_bound) {
                     continue;
                 }
 
-                // Select the second sample using the maximum error
-                // difference heuristic.
-                std::size_t j = n_samples;
+                bool pair_changed = false;
+
+                // First try the best non-bound multiplier according
+                // to the maximum error-difference heuristic.
+                std::size_t best_j = n_samples;
                 double largest_error_difference = -1.0;
 
                 for (std::size_t candidate = 0;
                      candidate < n_samples;
                      ++candidate) {
-                    if (candidate == i) {
+                    if (candidate == i ||
+                        alphas[candidate] <= alpha_epsilon ||
+                        alphas[candidate] >= C_ - alpha_epsilon) {
                         continue;
                     }
 
                     const double difference = std::abs(
-                        error_i - errors[candidate]
+                        errors[i] - errors[candidate]
                     );
 
                     if (difference >
                         largest_error_difference) {
                         largest_error_difference = difference;
-                        j = candidate;
+                        best_j = candidate;
                     }
                 }
 
-                if (j == n_samples) {
-                    continue;
+                if (best_j != n_samples) {
+                    pair_changed = take_step(i, best_j);
                 }
 
-                const double y_j =
-                    static_cast<double>(y[j]);
-
-                const double error_j = errors[j];
-
-                const double old_alpha_i = alphas[i];
-                const double old_alpha_j = alphas[j];
-
-                double lower_bound = 0.0;
-                double upper_bound = 0.0;
-
-                if (y[i] != y[j]) {
-                    lower_bound = std::max(
-                        0.0,
-                        old_alpha_j - old_alpha_i
+                // If the heuristic pair cannot move, try every
+                // non-bound multiplier in randomized order.
+                if (!pair_changed) {
+                    std::shuffle(
+                        candidate_order.begin(),
+                        candidate_order.end(),
+                        generator
                     );
 
-                    upper_bound = std::min(
-                        C_,
-                        C_ + old_alpha_j - old_alpha_i
+                    for (std::size_t candidate : candidate_order) {
+                        if (candidate == i ||
+                            candidate == best_j ||
+                            alphas[candidate] <= alpha_epsilon ||
+                            alphas[candidate] >= C_ - alpha_epsilon) {
+                            continue;
+                        }
+
+                        if (take_step(i, candidate)) {
+                            pair_changed = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Finally try all multipliers. This prevents one
+                // unsuitable j from causing false convergence.
+                if (!pair_changed) {
+                    std::shuffle(
+                        candidate_order.begin(),
+                        candidate_order.end(),
+                        generator
                     );
-                } else {
-                    lower_bound = std::max(
-                        0.0,
-                        old_alpha_i + old_alpha_j - C_
-                    );
 
-                    upper_bound = std::min(
-                        C_,
-                        old_alpha_i + old_alpha_j
-                    );
+                    for (std::size_t candidate : candidate_order) {
+                        if (candidate == i ||
+                            candidate == best_j) {
+                            continue;
+                        }
+
+                        if (take_step(i, candidate)) {
+                            pair_changed = true;
+                            break;
+                        }
+                    }
                 }
 
-                if (lower_bound >= upper_bound) {
-                    continue;
+                if (pair_changed) {
+                    ++changed_pairs;
                 }
-
-                const double eta =
-                    2.0 * kernel_matrix(i, j)
-                    - kernel_matrix(i, i)
-                    - kernel_matrix(j, j);
-
-                // For a positive semi-definite kernel, eta should
-                // normally be strictly negative.
-                if (eta >= 0.0) {
-                    continue;
-                }
-
-                double new_alpha_j =
-                    old_alpha_j
-                    - y_j * (error_i - error_j) / eta;
-
-                new_alpha_j = std::clamp(
-                    new_alpha_j,
-                    lower_bound,
-                    upper_bound
-                );
-
-                const double alpha_change_threshold =
-                    std::numeric_limits<double>::epsilon()
-                    * std::max(1.0, C_);
-
-                if (std::abs(
-                        new_alpha_j - old_alpha_j
-                    ) <= alpha_change_threshold) {
-                    continue;
-                }
-
-                const double new_alpha_i =
-                    old_alpha_i
-                    + y_i * y_j
-                    * (old_alpha_j - new_alpha_j);
-
-                const double delta_i =
-                    new_alpha_i - old_alpha_i;
-
-                const double delta_j =
-                    new_alpha_j - old_alpha_j;
-
-                const double old_intercept = new_intercept;
-
-                const double first_intercept =
-                    old_intercept
-                    - error_i
-                    - y_i * delta_i
-                        * kernel_matrix(i, i)
-                    - y_j * delta_j
-                        * kernel_matrix(i, j);
-
-                const double second_intercept =
-                    old_intercept
-                    - error_j
-                    - y_i * delta_i
-                        * kernel_matrix(i, j)
-                    - y_j * delta_j
-                        * kernel_matrix(j, j);
-
-                if (new_alpha_i > 0.0 &&
-                    new_alpha_i < C_) {
-                    new_intercept = first_intercept;
-                } else if (new_alpha_j > 0.0 &&
-                           new_alpha_j < C_) {
-                    new_intercept = second_intercept;
-                } else {
-                    new_intercept =
-                        0.5
-                        * (first_intercept + second_intercept);
-                }
-
-                alphas[i] = new_alpha_i;
-                alphas[j] = new_alpha_j;
-
-                const double intercept_change =
-                    new_intercept - old_intercept;
-
-                // Update every cached training error incrementally.
-                for (std::size_t sample = 0;
-                     sample < n_samples;
-                     ++sample) {
-                    errors[sample] +=
-                        y_i * delta_i
-                            * kernel_matrix(i, sample)
-                        + y_j * delta_j
-                            * kernel_matrix(j, sample)
-                        + intercept_change;
-                }
-
-                ++changed_pairs;
             }
 
             performed_iterations = iteration + 1;
 
-            if (changed_pairs == 0) {
+            // Verify the KKT conditions globally. A pass with no
+            // successful pair is not by itself proof of convergence.
+            double maximum_kkt_violation = 0.0;
+
+            for (std::size_t i = 0; i < n_samples; ++i) {
+                const double signed_error =
+                    static_cast<double>(y[i]) * errors[i];
+
+                if (alphas[i] < C_ - alpha_epsilon) {
+                    maximum_kkt_violation = std::max(
+                        maximum_kkt_violation,
+                        -signed_error
+                    );
+                }
+
+                if (alphas[i] > alpha_epsilon) {
+                    maximum_kkt_violation = std::max(
+                        maximum_kkt_violation,
+                        signed_error
+                    );
+                }
+            }
+
+            if (maximum_kkt_violation <= tolerance_) {
                 new_converged = true;
                 break;
             }
+
+            (void)changed_pairs;
         }
     } else {
         // Without an intercept, the dual problem does not contain
@@ -504,11 +604,34 @@ void BinarySVM::fit(
 
             performed_iterations = iteration + 1;
 
-            if (maximum_change <=
-                tolerance_ * std::max(1.0, C_)) {
+            double maximum_kkt_violation = 0.0;
+
+            for (std::size_t i = 0; i < n_samples; ++i) {
+                const double gradient =
+                    1.0
+                    - static_cast<double>(y[i]) * scores[i];
+
+                if (alphas[i] < C_) {
+                    maximum_kkt_violation = std::max(
+                        maximum_kkt_violation,
+                        gradient
+                    );
+                }
+
+                if (alphas[i] > 0.0) {
+                    maximum_kkt_violation = std::max(
+                        maximum_kkt_violation,
+                        -gradient
+                    );
+                }
+            }
+
+            if (maximum_kkt_violation <= tolerance_) {
                 new_converged = true;
                 break;
             }
+
+            (void)maximum_change;
         }
 
         new_intercept = 0.0;
@@ -791,4 +914,4 @@ void BinarySVM::validate_prediction_data(
     }
 }
 
-} // namespace chiikaml::detail
+} // namespace chiikaml
