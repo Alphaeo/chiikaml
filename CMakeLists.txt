@@ -26,6 +26,8 @@ add_library(chiikaml
     src/train_test_split.cpp
     src/binary_svm.cpp
     src/variable.cpp
+    src/xgboost_tree.cpp
+    src/xgboost_regressor.cpp
 )
 
 target_include_directories(chiikaml PUBLIC

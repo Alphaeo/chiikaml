@@ -22,6 +22,8 @@ add_executable(chiikaml_tests
     test_split.cpp
     test_binary_svm.cpp
     test_variable.cpp
+    test_xgboost_tree.cpp
+    test_xgboost_regressor.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE
