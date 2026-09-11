@@ -89,6 +89,34 @@ void Matrix::resize(std::size_t rows, std::size_t cols) {
     data_ = std::move(new_data);
 }
 
+Matrix Matrix::select_rows(
+    const std::vector<std::size_t>& indices
+) const {
+    Matrix result(indices.size(), cols_);
+
+    for (std::size_t destination_row = 0;
+         destination_row < indices.size();
+         ++destination_row) {
+        const std::size_t source_row =
+            indices[destination_row];
+
+        if (source_row >= rows_) {
+            throw std::out_of_range(
+                "Row index is outside the matrix"
+            );
+        }
+
+        for (std::size_t column = 0;
+             column < cols_;
+             ++column) {
+            result(destination_row, column) =
+                (*this)(source_row, column);
+        }
+    }
+
+    return result;
+}
+
 // TODO(toi), etape par etape :
 //
 // - std::ifstream file(path); si !file.is_open(), leve
