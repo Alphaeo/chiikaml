@@ -25,6 +25,7 @@ add_executable(chiikaml_tests
     test_xgboost_tree.cpp
     test_xgboost_regressor.cpp
     test_cross_validation.cpp
+    test_grid_search.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE
