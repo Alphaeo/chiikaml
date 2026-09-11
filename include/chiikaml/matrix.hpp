@@ -76,6 +76,15 @@ public:
     // (cols, le paramètre) pour écrire dans le nouveau.
     void resize(std::size_t rows, std::size_t cols);
 
+    // Creates a new matrix containing the selected rows, in the order
+    // specified by indices.
+    //
+    // Repeated indices are allowed, which is useful for bootstrap
+    // sampling. Throws std::out_of_range if an index is invalid.
+    Matrix select_rows(
+        const std::vector<std::size_t>& indices
+    ) const;
+
     // Charge une matrice depuis un fichier CSV : une ligne de texte
     // = une ligne de la matrice, des valeurs numeriques separees par
     // des virgules. Pas d'en-tete de colonnes suppose -- toutes les

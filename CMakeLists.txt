@@ -28,6 +28,7 @@ add_library(chiikaml
     src/variable.cpp
     src/xgboost_tree.cpp
     src/xgboost_regressor.cpp
+    src/k_fold.cpp
 )
 
 target_include_directories(chiikaml PUBLIC
