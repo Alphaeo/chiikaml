@@ -11,7 +11,12 @@ namespace chiikaml {
 // plus ici -- ils sont remplis par fit().
 XGBoostRegressor::XGBoostRegressor(std::size_t n_estimators, double learning_rate, std::size_t max_depth,
                                     double lambda, double gamma, double min_child_weight) {
-    throw std::logic_error("XGBoostRegressor::XGBoostRegressor pas encore implemente");
+    n_estimators_ = n_estimators;
+    learning_rate_ = learning_rate;
+    max_depth_ = max_depth;
+    lambda_ = lambda;
+    gamma_ = gamma;
+    min_child_weight_ = min_child_weight;
 }
 
 // TODO(toi), etape par etape :
@@ -38,7 +43,28 @@ XGBoostRegressor::XGBoostRegressor(std::size_t n_estimators, double learning_rat
 //       predict() plus tard -- rappelle-toi, XGBoostTree n'est pas
 //       copiable, il faut le deplacer).
 void XGBoostRegressor::fit(const Matrix& X, const std::vector<double>& y) {
-    throw std::logic_error("XGBoostRegressor::fit pas encore implemente");
+    base_prediction_ = std::accumulate(y.begin(), y.end(), 0.0) / y.size();
+    std::vector<double>predictions = std::vector<double>(X.rows(), base_prediction_);
+
+    for (std::size_t round = 0; round < n_estimators_; ++round) {
+        std::vector<double> gradients(X.rows());
+        std::vector<double> hessians(X.rows());
+
+        for (std::size_t i = 0; i < X.rows(); ++i) {
+            gradients[i] = predictions[i] - y[i];
+            hessians[i] = 1.0;
+        }
+
+        XGBoostTree tree(lambda_, gamma_, max_depth_, min_child_weight_);
+        tree.fit(X, gradients, hessians);
+
+        std::vector<double> tree_predictions = tree.predict(X);
+        for (std::size_t i = 0; i < predictions.size(); ++i) {
+            predictions[i] += learning_rate_ * tree_predictions[i];
+        }
+
+        trees_.push_back(std::move(tree));
+    }
 }
 
 // TODO(toi), etape par etape :
@@ -52,7 +78,14 @@ void XGBoostRegressor::fit(const Matrix& X, const std::vector<double>& y) {
 //
 // - renvoie preds.
 std::vector<double> XGBoostRegressor::predict(const Matrix& X) const {
-    throw std::logic_error("XGBoostRegressor::predict pas encore implemente");
+    std::vector<double> preds(X.rows(), base_prediction_);
+    for (const auto& tree : trees_) {
+        std::vector<double> tree_predictions = tree.predict(X);
+        for (std::size_t i = 0; i < preds.size(); ++i) {
+            preds[i] += learning_rate_ * tree_predictions[i];
+        }
+    }
+    return preds;
 }
 
 } // namespace chiikaml
