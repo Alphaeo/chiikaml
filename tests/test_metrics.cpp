@@ -5,6 +5,9 @@
 #include <vector>
 
 #include "chiikaml/metrics/classification_metrics.hpp"
+#include "chiikaml/metrics/regression_metrics.hpp"
+
+
 
 using chiikaml::Matrix;
 using namespace chiikaml::metrics;
@@ -180,6 +183,113 @@ TEST_CASE("Classification metrics reject different target sizes",
 
     REQUIRE_THROWS_AS(
         confusion_matrix(y_true, y_pred),
+        std::invalid_argument
+    );
+}
+
+// Regression metrics tests
+
+TEST_CASE(
+    "Regression metrics correctly evaluate basic predictions",
+    "[regression_metrics]"
+) {
+    const std::vector<double> y_true = {
+        1.0, 2.0, 3.0
+    };
+
+    const std::vector<double> y_pred = {
+        1.0, 3.0, 2.0
+    };
+
+    REQUIRE(
+        chiikaml::metrics::mean_squared_error(
+            y_true,
+            y_pred
+        ) == Catch::Approx(2.0 / 3.0)
+    );
+
+    REQUIRE(
+        chiikaml::metrics::mean_absolute_error(
+            y_true,
+            y_pred
+        ) == Catch::Approx(2.0 / 3.0)
+    );
+
+    REQUIRE(
+        chiikaml::metrics::r2_score(
+            y_true,
+            y_pred
+        ) == Catch::Approx(0.0)
+    );
+}
+
+TEST_CASE(
+    "Regression metrics recognize perfect predictions",
+    "[regression_metrics]"
+) {
+    const std::vector<double> y_true = {
+        2.0, 4.0, 6.0, 8.0
+    };
+
+    const std::vector<double> y_pred = y_true;
+
+    REQUIRE(
+        chiikaml::metrics::mean_squared_error(
+            y_true,
+            y_pred
+        ) == Catch::Approx(0.0)
+    );
+
+    REQUIRE(
+        chiikaml::metrics::mean_absolute_error(
+            y_true,
+            y_pred
+        ) == Catch::Approx(0.0)
+    );
+
+    REQUIRE(
+        chiikaml::metrics::r2_score(
+            y_true,
+            y_pred
+        ) == Catch::Approx(1.0)
+    );
+}
+
+TEST_CASE(
+    "Regression metrics reject invalid target vectors",
+    "[regression_metrics]"
+) {
+    const std::vector<double> empty;
+
+    REQUIRE_THROWS_AS(
+        chiikaml::metrics::mean_squared_error(
+            empty,
+            empty
+        ),
+        std::invalid_argument
+    );
+
+    const std::vector<double> y_true = {
+        1.0, 2.0, 3.0
+    };
+
+    const std::vector<double> y_pred = {
+        1.0, 2.0
+    };
+
+    REQUIRE_THROWS_AS(
+        chiikaml::metrics::mean_absolute_error(
+            y_true,
+            y_pred
+        ),
+        std::invalid_argument
+    );
+
+    REQUIRE_THROWS_AS(
+        chiikaml::metrics::r2_score(
+            y_true,
+            y_pred
+        ),
         std::invalid_argument
     );
 }

@@ -18,12 +18,14 @@ add_executable(chiikaml_tests
     test_ridge_regression.cpp
     test_lasso_regression.cpp
     test_tensor.cpp
-    test_classification_metrics.cpp
+    test_metrics.cpp
     test_split.cpp
     test_binary_svm.cpp
     test_variable.cpp
     test_xgboost_tree.cpp
     test_xgboost_regressor.cpp
+    test_cross_validation.cpp
+    test_grid_search.cpp
 )
 
 target_link_libraries(chiikaml_tests PRIVATE
