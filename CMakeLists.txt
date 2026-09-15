@@ -23,6 +23,7 @@ add_library(chiikaml
     src/lasso_regression.cpp
     src/tensor.cpp
     src/classification_metrics.cpp
+    src/regression_metrics.cpp
     src/train_test_split.cpp
     src/binary_svm.cpp
     src/variable.cpp
